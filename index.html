@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Babylon Chat</title>
+  <style>
+    body { font-family: sans-serif; max-width: 600px; margin: 2rem auto; padding: 0 1rem; }
+    #messages { list-style: none; padding: 0.5rem; height: 400px; overflow-y: auto;
+                border: 1px solid #ccc; border-radius: 6px; }
+    #messages li { padding: 4px 0; }
+    .system { color: #888; font-style: italic; }
+    .author { font-weight: bold; }
+    form { display: flex; gap: 0.5rem; margin-top: 1rem; }
+    input { flex: 1; padding: 0.5rem; }
+    button { padding: 0.5rem 1rem; }
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+  <h1>Babylon Chat</h1>
+
+  <!-- Step 1: ask for a username -->
+  <form id="join-form">
+    <input id="username-input" maxlength="20" autocomplete="off" placeholder="Choose a username..." />
+    <button type="submit">Join</button>
+  </form>
+
+  <!-- Step 2: the chat itself (hidden until the user joins) -->
+  <div id="chat" class="hidden">
+    <ul id="messages"></ul>
+    <form id="chat-form">
+      <input id="message-input" autocomplete="off" placeholder="Type a message..." />
+      <button type="submit">Send</button>
+    </form>
+  </div>
+
+  <script>
+    const joinForm = document.getElementById("join-form");
+    const usernameInput = document.getElementById("username-input");
+    const chat = document.getElementById("chat");
+    const messages = document.getElementById("messages");
+    const chatForm = document.getElementById("chat-form");
+    const messageInput = document.getElementById("message-input");
+
+    let ws;
+
+    joinForm.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const username = usernameInput.value.trim();
+      if (username === "") return;
+
+      // Use wss:// on HTTPS sites, ws:// otherwise (needed later for deployment)
+      const protocol = location.protocol === "https:" ? "wss" : "ws";
+      // encodeURIComponent keeps special characters from breaking the URL
+      ws = new WebSocket(`${protocol}://${location.host}/ws?username=${encodeURIComponent(username)}`);
+      ws.onmessage = handleMessage;
+
+      joinForm.classList.add("hidden");
+      chat.classList.remove("hidden");
+      messageInput.focus();
+    });
+
+    // Runs every time the server sends us a message
+    function handleMessage(event) {
+      const data = JSON.parse(event.data);
+      const li = document.createElement("li");
+
+      if (data.type === "system") {
+        li.className = "system";
+        li.textContent = data.text;
+      } else {
+        const author = document.createElement("span");
+        author.className = "author";
+        author.textContent = data.username + ": ";
+        li.appendChild(author);
+        li.appendChild(document.createTextNode(data.text));
+      }
+
+      messages.appendChild(li);
+      messages.scrollTop = messages.scrollHeight;
+    }
+
+    chatForm.addEventListener("submit", (event) => {
+      event.preventDefault();
+      if (messageInput.value.trim() === "") return;
+      ws.send(messageInput.value);
+      messageInput.value = "";
+    });
+  </script>
+</body>
+</html>
