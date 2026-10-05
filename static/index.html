@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Babylon Chat</title>
+  <style>
+    body { font-family: sans-serif; max-width: 600px; margin: 2rem auto; padding: 0 1rem; }
+    #messages { list-style: none; padding: 0.5rem; height: 400px; overflow-y: auto;
+                border: 1px solid #ccc; border-radius: 6px; }
+    #messages li { padding: 4px 0; display: flex; align-items: center; gap: 8px; }
+    .system { color: #888; font-style: italic; }
+    .author { font-weight: bold; cursor: pointer; }
+    .avatar { width: 28px; height: 28px; border-radius: 50%; color: #fff; flex-shrink: 0;
+              display: inline-flex; align-items: center; justify-content: center;
+              font-weight: bold; font-size: 14px; }
+    .avatar.big { width: 56px; height: 56px; font-size: 24px; }
+    form { display: flex; gap: 0.5rem; margin-top: 1rem; }
+    form.column { flex-direction: column; }
+    input, textarea { flex: 1; padding: 0.5rem; font-family: inherit; }
+    button { padding: 0.5rem 1rem; }
+    .hidden { display: none; }
+    .error { color: #c00; min-height: 1.2em; }
+    .success { color: #080; min-height: 1.2em; }
+    .topbar { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; }
+    .card { border: 1px solid #ccc; border-radius: 6px; padding: 1rem; margin-top: 1rem;
+            display: flex; gap: 1rem; align-items: center; }
+    .card p { margin: 2px 0; }
+    input[type="color"] { padding: 0; height: 2.2rem; flex: 0 0 4rem; }
+  </style>
+</head>
+<body>
+  <h1>Babylon Chat</h1>
+
+  <!-- Auth screen -->
+  <div id="auth-screen" class="hidden">
+    <form id="auth-form" class="column">
+      <input id="auth-username" placeholder="Username (3-20 letters, digits, _)" autocomplete="username" />
+      <input id="auth-password" type="password" placeholder="Password (min 8 characters)" autocomplete="current-password" />
+      <div style="display: flex; gap: 0.5rem;">
+        <button type="submit" data-mode="login">Log in</button>
+        <button type="submit" data-mode="register">Create account</button>
+      </div>
+    </form>
+    <p id="auth-error" class="error"></p>
+  </div>
+
+  <!-- Chat screen -->
+  <div id="chat-screen" class="hidden">
+    <div class="topbar">
+      <span>Logged in as <strong id="current-user"></strong></span>
+      <span>
+        <button id="profile-button" type="button">Profile</button>
+        <button id="logout-button" type="button">Log out</button>
+      </span>
+    </div>
+    <ul id="messages"></ul>
+    <div id="profile-card" class="card hidden"></div>
+    <form id="chat-form">
+      <input id="message-input" autocomplete="off" placeholder="Type a message..." />
+      <button type="submit">Send</button>
+    </form>
+  </div>
+
+  <!-- Profile screen -->
+  <div id="profile-screen" class="hidden">
+    <button id="back-button" type="button">&larr; Back to chat</button>
+    <h2>Your profile</h2>
+
+    <form id="profile-form" class="column">
+      <label>Bio (max 160 characters)
+        <textarea id="bio-input" maxlength="160" rows="3"></textarea>
+      </label>
+      <label>Avatar color <input id="color-input" type="color" /></label>
+      <button type="submit">Save profile</button>
+    </form>
+    <p id="profile-message"></p>
+
+    <h2>Change username</h2>
+    <form id="username-form" class="column">
+      <input id="new-username-input" placeholder="New username" autocomplete="off" />
+      <input id="username-password-input" type="password" placeholder="Current password" autocomplete="current-password" />
+      <button type="submit">Change username</button>
+    </form>
+    <p id="username-message"></p>
+  </div>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const screens = { auth: $("auth-screen"), chat: $("chat-screen"), profile: $("profile-screen") };
+    const messages = $("messages");
+    let ws = null;
+
+    // ---------- Helpers ----------
+    function errorText(detail) {
+      if (typeof detail === "string") return detail;
+      if (Array.isArray(detail)) return "Invalid input format.";
+      return "Something went wrong.";
+    }
+
+    function show(name) {
+      for (const [key, el] of Object.entries(screens)) el.classList.toggle("hidden", key !== name);
+    }
+
+    // Authenticated request helper: adds the token and throws readable errors
+    async function api(path, options = {}) {
+      const token = localStorage.getItem("token");
+      const response = await fetch(path, {
+        ...options,
+        headers: { ...(options.headers || {}), Authorization: `Bearer ${token}` },
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(errorText(data.detail));
+      return data;
+    }
+
+    function jsonRequest(method, body) {
+      return { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) };
+    }
+
+    function makeAvatar(username, color, big = false) {
+      const el = document.createElement("span");
+      el.className = "avatar" + (big ? " big" : "");
+      el.style.background = color;
+      el.textContent = username[0].toUpperCase();
+      return el;
+    }
+
+    // ---------- Authentication ----------
+    async function login(username, password) {
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        body: new URLSearchParams({ username, password }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(errorText(data.detail));
+      localStorage.setItem("token", data.access_token);
+    }
+
+    async function register(username, password) {
+      const response = await fetch("/api/auth/register", jsonRequest("POST", { username, password }));
+      const data = await response.json();
+      if (!response.ok) throw new Error(errorText(data.detail));
+    }
+
+    async function fetchMyProfile() {
+      if (!localStorage.getItem("token")) return null;
+      try { return await api("/api/users/me"); } catch { return null; }
+    }
+
+    $("auth-form").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      $("auth-error").textContent = "";
+      const mode = event.submitter.dataset.mode;
+      const username = $("auth-username").value.trim();
+      const password = $("auth-password").value;
+      try {
+        if (mode === "register") await register(username, password);
+        await login(username, password);
+        $("auth-password").value = "";
+        openChat(await fetchMyProfile());
+      } catch (error) {
+        $("auth-error").textContent = error.message;
+      }
+    });
+
+    function logout() {
+      localStorage.removeItem("token");
+      closeSocket();
+      show("auth");
+    }
+    $("logout-button").addEventListener("click", logout);
+
+    // ---------- Chat ----------
+    function openChat(profile) {
+      $("current-user").textContent = profile.username;
+      $("profile-card").classList.add("hidden");
+      show("chat");
+      messages.innerHTML = "";
+      connectWebSocket(); // reconnecting also picks up a new username / avatar color
+      $("message-input").focus();
+    }
+
+    function closeSocket() {
+      if (ws) { ws.onclose = null; ws.close(); ws = null; }
+    }
+
+    function connectWebSocket() {
+      closeSocket();
+      const protocol = location.protocol === "https:" ? "wss" : "ws";
+      const token = localStorage.getItem("token");
+      ws = new WebSocket(`${protocol}://${location.host}/ws?token=${encodeURIComponent(token)}`);
+      ws.onmessage = handleMessage;
+      ws.onclose = (event) => { if (event.code === 1008 || event.code === 1006) logout(); };
+    }
+
+    function handleMessage(event) {
+      const data = JSON.parse(event.data);
+      const li = document.createElement("li");
+
+      if (data.type === "system") {
+        li.className = "system";
+        li.textContent = data.text;
+      } else {
+        const author = document.createElement("span");
+        author.className = "author";
+        author.textContent = data.username;
+        author.addEventListener("click", () => showUserCard(data.username));
+        li.appendChild(makeAvatar(data.username, data.avatar_color));
+        li.appendChild(author);
+        li.appendChild(document.createTextNode(data.text));
+      }
+      messages.appendChild(li);
+      messages.scrollTop = messages.scrollHeight;
+    }
+
+    $("chat-form").addEventListener("submit", (event) => {
+      event.preventDefault();
+      const input = $("message-input");
+      if (input.value.trim() === "" || !ws) return;
+      ws.send(input.value);
+      input.value = "";
+    });
+
+    // Small profile card shown when clicking a username
+    async function showUserCard(username) {
+      const card = $("profile-card");
+      try {
+        const p = await api(`/api/users/${encodeURIComponent(username)}`);
+        card.innerHTML = "";
+        card.appendChild(makeAvatar(p.username, p.avatar_color, true));
+        const info = document.createElement("div");
+        const name = document.createElement("strong");
+        name.textContent = p.username;
+        const bio = document.createElement("p");
+        bio.textContent = p.bio || "No bio yet.";
+        const since = document.createElement("p");
+        since.className = "system";
+        since.textContent = "Member since " + new Date(p.created_at).toLocaleDateString();
+        info.append(name, bio, since);
+        card.appendChild(info);
+        card.classList.remove("hidden");
+      } catch (error) {
+        card.classList.add("hidden");
+      }
+    }
+
+    // ---------- Profile screen ----------
+    $("profile-button").addEventListener("click", async () => {
+      const p = await fetchMyProfile();
+      if (!p) return logout();
+      $("bio-input").value = p.bio;
+      $("color-input").value = p.avatar_color;
+      $("new-username-input").value = "";
+      $("username-password-input").value = "";
+      $("profile-message").textContent = "";
+      $("username-message").textContent = "";
+      show("profile");
+    });
+
+    $("back-button").addEventListener("click", async () => {
+      const p = await fetchMyProfile();
+      if (!p) return logout();
+      openChat(p);
+    });
+
+    function setMessage(el, text, ok) {
+      el.textContent = text;
+      el.className = ok ? "success" : "error";
+    }
+
+    $("profile-form").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      try {
+        await api("/api/users/me", jsonRequest("PUT", {
+          bio: $("bio-input").value,
+          avatar_color: $("color-input").value,
+        }));
+        setMessage($("profile-message"), "Profile saved.", true);
+      } catch (error) {
+        setMessage($("profile-message"), error.message, false);
+      }
+    });
+
+    $("username-form").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      try {
+        await api("/api/users/me/username", jsonRequest("PUT", {
+          new_username: $("new-username-input").value.trim(),
+          password: $("username-password-input").value,
+        }));
+        $("username-password-input").value = "";
+        setMessage($("username-message"), "Username changed.", true);
+      } catch (error) {
+        setMessage($("username-message"), error.message, false);
+      }
+    });
+
+    // ---------- On page load ----------
+    (async () => {
+      const profile = await fetchMyProfile();
+      if (profile) openChat(profile);
+      else show("auth");
+    })();
+  </script>
+</body>
+</html>
