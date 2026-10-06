@@ -10,7 +10,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from app.database import get_db
-from app.models import User
+from app.models import Room, RoomMember, User
 
 # In production this comes from an environment variable, never from the code
 SECRET_KEY = os.getenv("SECRET_KEY", "dev-only-secret-change-me-please-use-env-var")
@@ -74,6 +74,11 @@ def register(data: RegisterRequest, db: Session = Depends(get_db)):
         # Two people registered the same name at the same moment
         db.rollback()
         raise HTTPException(status_code=409, detail="Username is already taken")
+
+    general = db.scalar(select(Room).where(Room.name_lower == "general"))
+    if general:
+        db.add(RoomMember(user_id=user.id, room_id=general.id))
+        db.commit()
     return {"id": user.id, "username": user.username}
 
 

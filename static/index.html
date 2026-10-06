@@ -4,85 +4,207 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Babylon Chat</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
-    body { font-family: sans-serif; max-width: 600px; margin: 2rem auto; padding: 0 1rem; }
-    #messages { list-style: none; padding: 0.5rem; height: 400px; overflow-y: auto;
-                border: 1px solid #ccc; border-radius: 6px; }
-    #messages li { padding: 4px 0; display: flex; align-items: center; gap: 8px; }
-    .system { color: #888; font-style: italic; }
-    .author { font-weight: bold; cursor: pointer; }
-    .avatar { width: 28px; height: 28px; border-radius: 50%; color: #fff; flex-shrink: 0;
-              display: inline-flex; align-items: center; justify-content: center;
-              font-weight: bold; font-size: 14px; }
-    .avatar.big { width: 56px; height: 56px; font-size: 24px; }
-    form { display: flex; gap: 0.5rem; margin-top: 1rem; }
-    form.column { flex-direction: column; }
-    input, textarea { flex: 1; padding: 0.5rem; font-family: inherit; }
-    button { padding: 0.5rem 1rem; }
-    .hidden { display: none; }
-    .error { color: #c00; min-height: 1.2em; }
-    .success { color: #080; min-height: 1.2em; }
-    .topbar { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; }
-    .card { border: 1px solid #ccc; border-radius: 6px; padding: 1rem; margin-top: 1rem;
-            display: flex; gap: 1rem; align-items: center; }
-    .card p { margin: 2px 0; }
-    input[type="color"] { padding: 0; height: 2.2rem; flex: 0 0 4rem; }
+    :root {
+      --bg-deep: #1e1f22;
+      --bg-side: #2b2d31;
+      --bg-main: #313338;
+      --bg-input: #383a40;
+      --bg-hover: #35373c;
+      --accent: #800c33;
+      --accent-hover: #800c33;
+      --text: #dbdee1;
+      --text-strong: #f2f3f5;
+      --muted: #949ba4;
+      --danger: #f23f43;
+      --success: #23a55a;
+      --font: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; }
+    body { font-family: var(--font); background: var(--bg-main); color: var(--text); font-size: 15px; line-height: 1.4; }
+    h1, h2, h3, p { margin: 0; }
+    ul { list-style: none; margin: 0; padding: 0; }
+    .hidden { display: none !important; }
+    button, input, textarea { font-family: inherit; font-size: inherit; color: inherit; }
+    :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+    /* ---------- Controls ---------- */
+    input, textarea { background: var(--bg-deep); border: 1px solid transparent; border-radius: 4px; padding: 10px 12px; width: 100%; min-width: 0; }
+    input:focus, textarea:focus { outline: none; border-color: var(--accent); }
+    input::placeholder, textarea::placeholder { color: var(--muted); }
+    textarea { resize: vertical; }
+    .btn { background: var(--accent); color: #fff; border: 0; border-radius: 4px; padding: 10px 16px; font-weight: 600; cursor: pointer; transition: background .15s; }
+    .btn:hover { background: var(--accent-hover); }
+    .btn.secondary { background: var(--bg-input); color: var(--text); }
+    .btn.secondary:hover { background: #4e5058; }
+    .btn.small { padding: 4px 10px; font-size: 13px; }
+    .icon-btn { background: none; border: 0; color: var(--muted); cursor: pointer; padding: 6px 8px; border-radius: 4px; }
+    .icon-btn:hover { background: var(--bg-hover); color: var(--text-strong); }
+    .error { color: var(--danger); min-height: 1.3em; font-size: 14px; }
+    .success { color: var(--success); min-height: 1.3em; font-size: 14px; }
+    .stack { display: flex; flex-direction: column; gap: 12px; }
+    .row { display: flex; gap: 8px; }
+    label { display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 600; color: var(--muted); }
+    input[type="color"] { padding: 2px; height: 40px; width: 64px; cursor: pointer; }
+
+    /* ---------- Avatars ---------- */
+    .avatar { width: 40px; height: 40px; border-radius: 50%; color: #fff; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; font-weight: 600; font-size: 17px; }
+    .avatar.small { width: 32px; height: 32px; font-size: 14px; }
+    .avatar.big { width: 64px; height: 64px; font-size: 28px; }
+
+    /* ---------- Centered screens (auth, profile) ---------- */
+    .center { min-height: 100%; display: flex; align-items: center; justify-content: center; padding: 24px; background: var(--bg-deep); overflow-y: auto; }
+    .panel { background: var(--bg-main); border-radius: 8px; padding: 32px; width: 100%; max-width: 440px; box-shadow: 0 8px 24px rgba(0, 0, 0, .4); }
+    .panel h1 { font-size: 24px; font-weight: 700; color: var(--text-strong); text-align: center; }
+    .panel .lead { color: var(--muted); text-align: center; margin: 8px 0 24px; }
+    .panel h2 { font-size: 18px; color: var(--text-strong); margin: 28px 0 12px; }
+    .panel h2:first-of-type { margin-top: 16px; }
+
+    /* ---------- App layout ---------- */
+    .app { display: flex; height: 100dvh; }
+    #sidebar { width: 260px; background: var(--bg-side); display: flex; flex-direction: column; flex-shrink: 0; }
+    .side-head { height: 52px; padding: 0 16px; display: flex; align-items: center; font-weight: 700; font-size: 17px; color: var(--text-strong); border-bottom: 1px solid var(--bg-deep); flex-shrink: 0; }
+    .side-scroll { flex: 1; overflow-y: auto; padding: 8px; }
+    .side-label { font-size: 12px; font-weight: 600; color: var(--muted); padding: 14px 8px 6px; }
+    .room { display: flex; align-items: center; gap: 4px; border-radius: 4px; padding: 2px 4px 2px 8px; }
+    .room:hover { background: var(--bg-hover); }
+    .room.active { background: #404249; }
+    .room .name { flex: 1; min-width: 0; text-align: left; background: none; border: 0; padding: 6px 0; cursor: pointer; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .room:hover .name { color: var(--text); }
+    .room.active .name { color: var(--text-strong); font-weight: 500; }
+    .room .count { font-size: 12px; color: var(--muted); }
+    #room-form { margin-top: 16px; padding: 0 4px; }
+    #room-error { padding: 4px 8px 0; }
+    .userbar { background: #232428; padding: 8px; display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+    .userbar .who { flex: 1; min-width: 0; font-weight: 600; color: var(--text-strong); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    main { flex: 1; min-width: 0; display: flex; flex-direction: column; background: var(--bg-main); }
+    .room-head { height: 52px; padding: 0 16px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid var(--bg-deep); flex-shrink: 0; }
+    .room-head h2 { font-size: 16px; font-weight: 700; color: var(--text-strong); }
+    #menu-button { display: none; }
+    #room-view { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+
+    /* ---------- Messages ---------- */
+    #messages { flex: 1; overflow-y: auto; padding: 16px 0 8px; display: flex; flex-direction: column; }
+    .empty { margin: auto; color: var(--muted); text-align: center; padding: 24px; }
+    .msg { display: flex; gap: 16px; padding: 2px 16px; margin-top: 16px; }
+    .msg:hover { background: rgba(2, 2, 2, .06); }
+    .msg.cont { margin-top: 0; padding-left: 72px; }
+    .msg .body { min-width: 0; }
+    .msg .head { display: flex; align-items: baseline; gap: 8px; }
+    .author { font-weight: 600; color: var(--text-strong); cursor: pointer; background: none; border: 0; padding: 0; }
+    .author:hover { text-decoration: underline; }
+    .time { color: var(--muted); font-size: 12px; }
+    .text { white-space: pre-wrap; overflow-wrap: anywhere; }
+    .sys { padding: 4px 16px; margin-top: 12px; color: var(--muted); font-size: 13px; }
+
+    .composer { padding: 0 16px 20px; flex-shrink: 0; }
+    .composer input { background: var(--bg-input); padding: 12px 16px; border-radius: 8px; }
+    #profile-card { margin: 0 16px 12px; background: var(--bg-side); border-radius: 8px; padding: 16px; display: flex; gap: 16px; align-items: center; cursor: pointer; flex-shrink: 0; }
+    #profile-card strong { color: var(--text-strong); font-size: 17px; }
+    #profile-card p { color: var(--muted); font-size: 14px; margin-top: 2px; }
+
+    /* ---------- Mobile ---------- */
+    @media (max-width: 700px) {
+      #sidebar { position: fixed; inset: 0 auto 0 0; z-index: 10; transform: translateX(-100%); transition: transform .2s; width: 280px; }
+      #sidebar.open { transform: none; box-shadow: 0 0 0 100vmax rgba(0, 0, 0, .5); }
+      #menu-button { display: inline-block; }
+      .msg { gap: 12px; }
+      .msg.cont { padding-left: 68px; }
+      .panel { padding: 24px; }
+    }
+    @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
   </style>
 </head>
 <body>
-  <h1>Babylon Chat</h1>
 
   <!-- Auth screen -->
-  <div id="auth-screen" class="hidden">
-    <form id="auth-form" class="column">
-      <input id="auth-username" placeholder="Username (3-20 letters, digits, _)" autocomplete="username" />
-      <input id="auth-password" type="password" placeholder="Password (min 8 characters)" autocomplete="current-password" />
-      <div style="display: flex; gap: 0.5rem;">
-        <button type="submit" data-mode="login">Log in</button>
-        <button type="submit" data-mode="register">Create account</button>
-      </div>
-    </form>
-    <p id="auth-error" class="error"></p>
+  <div id="auth-screen" class="center hidden">
+    <div class="panel">
+      <h1>Welcome to Babylon</h1>
+      <p class="lead">Log in or create an account to join the conversation.</p>
+      <form id="auth-form" class="stack">
+        <label>Username
+          <input id="auth-username" placeholder="3-20 letters, digits or _" autocomplete="username" />
+        </label>
+        <label>Password
+          <input id="auth-password" type="password" placeholder="At least 8 characters" autocomplete="current-password" />
+        </label>
+        <p id="auth-error" class="error"></p>
+        <div class="row">
+          <button class="btn" style="flex:1" type="submit" data-mode="login">Log in</button>
+          <button class="btn secondary" style="flex:1" type="submit" data-mode="register">Create account</button>
+        </div>
+      </form>
+    </div>
   </div>
 
   <!-- Chat screen -->
-  <div id="chat-screen" class="hidden">
-    <div class="topbar">
-      <span>Logged in as <strong id="current-user"></strong></span>
-      <span>
-        <button id="profile-button" type="button">Profile</button>
-        <button id="logout-button" type="button">Log out</button>
-      </span>
-    </div>
-    <ul id="messages"></ul>
-    <div id="profile-card" class="card hidden"></div>
-    <form id="chat-form">
-      <input id="message-input" autocomplete="off" placeholder="Type a message..." />
-      <button type="submit">Send</button>
-    </form>
+  <div id="chat-screen" class="app hidden">
+    <aside id="sidebar">
+      <div class="side-head">Babylon</div>
+      <div class="side-scroll">
+        <div class="side-label">Your rooms</div>
+        <ul id="my-rooms"></ul>
+        <div class="side-label">Browse rooms</div>
+        <ul id="other-rooms"></ul>
+        <div class="side-label">New room</div>
+        <form id="room-form" class="row">
+          <input id="room-name-input" maxlength="30" autocomplete="off" placeholder="Room name" />
+          <button class="btn small" type="submit">Create</button>
+        </form>
+        <p id="room-error" class="error"></p>
+      </div>
+      <div class="userbar">
+        <span id="me-avatar"></span>
+        <span id="current-user" class="who"></span>
+        <button id="profile-button" class="icon-btn" type="button" title="Profile settings">Profile</button>
+        <button id="logout-button" class="icon-btn" type="button" title="Log out">Log out</button>
+      </div>
+    </aside>
+
+    <main>
+      <header class="room-head">
+        <button id="menu-button" class="icon-btn" type="button" aria-label="Show rooms">&#9776;</button>
+        <h2 id="room-title"></h2>
+      </header>
+      <div id="room-view">
+        <ul id="messages"></ul>
+        <div id="profile-card" class="hidden" title="Click to close"></div>
+        <form id="chat-form" class="composer">
+          <input id="message-input" autocomplete="off" maxlength="1000" placeholder="Type a message" />
+        </form>
+      </div>
+    </main>
   </div>
 
   <!-- Profile screen -->
-  <div id="profile-screen" class="hidden">
-    <button id="back-button" type="button">&larr; Back to chat</button>
-    <h2>Your profile</h2>
+  <div id="profile-screen" class="center hidden">
+    <div class="panel">
+      <button id="back-button" class="btn secondary small" type="button">&larr; Back to chat</button>
 
-    <form id="profile-form" class="column">
-      <label>Bio (max 160 characters)
-        <textarea id="bio-input" maxlength="160" rows="3"></textarea>
-      </label>
-      <label>Avatar color <input id="color-input" type="color" /></label>
-      <button type="submit">Save profile</button>
-    </form>
-    <p id="profile-message"></p>
+      <h2>Your profile</h2>
+      <form id="profile-form" class="stack">
+        <label>Bio
+          <textarea id="bio-input" maxlength="160" rows="3" placeholder="Tell people about yourself (max 160 characters)"></textarea>
+        </label>
+        <label>Avatar color <input id="color-input" type="color" /></label>
+        <button class="btn" type="submit">Save profile</button>
+      </form>
+      <p id="profile-message"></p>
 
-    <h2>Change username</h2>
-    <form id="username-form" class="column">
-      <input id="new-username-input" placeholder="New username" autocomplete="off" />
-      <input id="username-password-input" type="password" placeholder="Current password" autocomplete="current-password" />
-      <button type="submit">Change username</button>
-    </form>
-    <p id="username-message"></p>
+      <h2>Change username</h2>
+      <form id="username-form" class="stack">
+        <input id="new-username-input" placeholder="New username" autocomplete="off" />
+        <input id="username-password-input" type="password" placeholder="Current password" autocomplete="current-password" />
+        <button class="btn" type="submit">Change username</button>
+      </form>
+      <p id="username-message"></p>
+    </div>
   </div>
 
   <script>
@@ -90,6 +212,9 @@
     const screens = { auth: $("auth-screen"), chat: $("chat-screen"), profile: $("profile-screen") };
     const messages = $("messages");
     let ws = null;
+    let rooms = [];
+    let currentRoom = null;
+    let lastAuthor = null; // used to group consecutive messages from the same person
 
     // ---------- Helpers ----------
     function errorText(detail) {
@@ -102,9 +227,8 @@
       for (const [key, el] of Object.entries(screens)) el.classList.toggle("hidden", key !== name);
     }
 
-    // Authenticated request helper: adds the token and throws readable errors
     async function api(path, options = {}) {
-      const token = localStorage.getItem("token");
+      const token = sessionStorage.getItem("token");
       const response = await fetch(path, {
         ...options,
         headers: { ...(options.headers || {}), Authorization: `Bearer ${token}` },
@@ -118,13 +242,22 @@
       return { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) };
     }
 
-    function makeAvatar(username, color, big = false) {
+    function makeAvatar(username, color, size = "") {
       const el = document.createElement("span");
-      el.className = "avatar" + (big ? " big" : "");
+      el.className = "avatar " + size;
       el.style.background = color;
       el.textContent = username[0].toUpperCase();
       return el;
     }
+
+    function setMessage(el, text, ok) {
+      el.textContent = text;
+      el.className = ok ? "success" : "error";
+    }
+
+    const sidebar = $("sidebar");
+    $("menu-button").addEventListener("click", () => sidebar.classList.toggle("open"));
+    document.querySelector("main").addEventListener("click", () => sidebar.classList.remove("open"));
 
     // ---------- Authentication ----------
     async function login(username, password) {
@@ -134,7 +267,7 @@
       });
       const data = await response.json();
       if (!response.ok) throw new Error(errorText(data.detail));
-      localStorage.setItem("token", data.access_token);
+      sessionStorage.setItem("token", data.access_token);
     }
 
     async function register(username, password) {
@@ -144,7 +277,7 @@
     }
 
     async function fetchMyProfile() {
-      if (!localStorage.getItem("token")) return null;
+      if (!sessionStorage.getItem("token")) return null;
       try { return await api("/api/users/me"); } catch { return null; }
     }
 
@@ -165,77 +298,226 @@
     });
 
     function logout() {
-      localStorage.removeItem("token");
+      sessionStorage.removeItem("token");
+      sessionStorage.removeItem("room");
       closeSocket();
+      currentRoom = null;
       show("auth");
     }
     $("logout-button").addEventListener("click", logout);
 
-    // ---------- Chat ----------
-    function openChat(profile) {
-      $("current-user").textContent = profile.username;
-      $("profile-card").classList.add("hidden");
-      show("chat");
+    // ---------- Rooms ----------
+    async function loadRooms() {
+      rooms = await api("/api/rooms");
+      renderRooms();
+    }
+
+    function renderRooms() {
+      $("my-rooms").innerHTML = "";
+      $("other-rooms").innerHTML = "";
+
+      for (const room of rooms) {
+        const li = document.createElement("li");
+        li.className = "room";
+
+        const name = document.createElement("button");
+        name.type = "button";
+        name.className = "name";
+        name.textContent = `# ${room.name}`;
+        const count = document.createElement("span");
+        count.className = "count";
+        count.textContent = room.member_count;
+
+        const action = document.createElement("button");
+        action.type = "button";
+        action.className = "btn secondary small";
+
+        li.append(name, count, action);
+        if (room.is_member) {
+          if (currentRoom && currentRoom.id === room.id) li.classList.add("active");
+          name.addEventListener("click", () => selectRoom(room));
+          action.textContent = "Leave";
+          action.addEventListener("click", () => leaveRoom(room));
+          $("my-rooms").appendChild(li);
+        } else {
+          name.addEventListener("click", () => joinRoom(room));
+          action.textContent = "Join";
+          action.addEventListener("click", () => joinRoom(room));
+          $("other-rooms").appendChild(li);
+        }
+      }
+    }
+
+    async function joinRoom(room) {
+      await api(`/api/rooms/${room.id}/join`, { method: "POST" });
+      await loadRooms();
+      selectRoom(rooms.find((r) => r.id === room.id));
+    }
+
+    async function leaveRoom(room) {
+      await api(`/api/rooms/${room.id}/leave`, { method: "DELETE" });
+      await loadRooms();
+      if (currentRoom && currentRoom.id === room.id) {
+        closeSocket();
+        currentRoom = null;
+        selectRoom(rooms.find((r) => r.is_member) || null);
+      }
+    }
+
+    async function selectRoom(room) {
+      closeSocket();
+      currentRoom = room;
+      lastAuthor = null;
       messages.innerHTML = "";
-      connectWebSocket(); // reconnecting also picks up a new username / avatar color
+      $("profile-card").classList.add("hidden");
+      sidebar.classList.remove("open");
+      renderRooms();
+
+      if (!room) {
+        $("room-title").textContent = "No room selected";
+        $("room-view").classList.add("hidden");
+        return;
+      }
+      sessionStorage.setItem("room", room.id);
+      $("room-title").textContent = `# ${room.name}`;
+      $("room-view").classList.remove("hidden");
+      $("message-input").placeholder = `Message #${room.name}`;
+
+      try {
+        const history = await api(`/api/rooms/${room.id}/messages`);
+        if (currentRoom !== room) return; // user switched rooms while loading
+        history.forEach(addMessage);
+        if (history.length === 0) {
+          const empty = document.createElement("li");
+          empty.className = "empty";
+          empty.id = "empty-note";
+          empty.textContent = `This is the start of #${room.name}. Say hello!`;
+          messages.appendChild(empty);
+        }
+      } catch (error) {
+        addSystemLine(error.message);
+      }
+      connectWebSocket(room);
       $("message-input").focus();
+    }
+
+    $("room-form").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      $("room-error").textContent = "";
+      try {
+        const created = await api("/api/rooms", jsonRequest("POST", { name: $("room-name-input").value.trim() }));
+        $("room-name-input").value = "";
+        await loadRooms();
+        selectRoom(rooms.find((r) => r.id === created.id));
+      } catch (error) {
+        $("room-error").textContent = error.message;
+      }
+    });
+
+    // ---------- Chat ----------
+    async function openChat(profile) {
+      $("current-user").textContent = profile.username;
+      $("me-avatar").replaceChildren(makeAvatar(profile.username, profile.avatar_color, "small"));
+      show("chat");
+      await loadRooms();
+      const mine = rooms.filter((r) => r.is_member);
+      const saved = Number(sessionStorage.getItem("room"));
+      selectRoom(mine.find((r) => r.id === saved) || mine[0] || null);
     }
 
     function closeSocket() {
       if (ws) { ws.onclose = null; ws.close(); ws = null; }
     }
 
-    function connectWebSocket() {
-      closeSocket();
+    function connectWebSocket(room) {
       const protocol = location.protocol === "https:" ? "wss" : "ws";
-      const token = localStorage.getItem("token");
-      ws = new WebSocket(`${protocol}://${location.host}/ws?token=${encodeURIComponent(token)}`);
-      ws.onmessage = handleMessage;
-      ws.onclose = (event) => { if (event.code === 1008 || event.code === 1006) logout(); };
+      const token = sessionStorage.getItem("token");
+      ws = new WebSocket(`${protocol}://${location.host}/ws/${room.id}?token=${encodeURIComponent(token)}`);
+      ws.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        if (data.type === "system") addSystemLine(data.text);
+        else addMessage(data);
+      };
+      ws.onclose = async () => {
+        if (!(await fetchMyProfile())) logout();
+        else addSystemLine("Disconnected. Select the room again to reconnect.");
+      };
     }
 
-    function handleMessage(event) {
-      const data = JSON.parse(event.data);
-      const li = document.createElement("li");
+    function scrollDown() { messages.scrollTop = messages.scrollHeight; }
 
-      if (data.type === "system") {
-        li.className = "system";
-        li.textContent = data.text;
+    function addSystemLine(text) {
+      const li = document.createElement("li");
+      li.className = "sys";
+      li.textContent = text;
+      messages.appendChild(li);
+      lastAuthor = null;
+      scrollDown();
+    }
+
+    function addMessage(data) {
+      const note = $("empty-note");
+      if (note) note.remove();
+
+      const time = new Date(data.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+      const grouped = lastAuthor === data.username;
+      lastAuthor = data.username;
+
+      const li = document.createElement("li");
+      li.className = grouped ? "msg cont" : "msg";
+      li.title = time;
+
+      const text = document.createElement("div");
+      text.className = "text";
+      text.textContent = data.text; // textContent prevents HTML injection (XSS)
+
+      if (grouped) {
+        li.appendChild(text);
       } else {
-        const author = document.createElement("span");
+        const author = document.createElement("button");
+        author.type = "button";
         author.className = "author";
         author.textContent = data.username;
         author.addEventListener("click", () => showUserCard(data.username));
-        li.appendChild(makeAvatar(data.username, data.avatar_color));
-        li.appendChild(author);
-        li.appendChild(document.createTextNode(data.text));
+
+        const stamp = document.createElement("span");
+        stamp.className = "time";
+        stamp.textContent = time;
+
+        const head = document.createElement("div");
+        head.className = "head";
+        head.append(author, stamp);
+
+        const body = document.createElement("div");
+        body.className = "body";
+        body.append(head, text);
+
+        li.append(makeAvatar(data.username, data.avatar_color), body);
       }
       messages.appendChild(li);
-      messages.scrollTop = messages.scrollHeight;
+      scrollDown();
     }
 
     $("chat-form").addEventListener("submit", (event) => {
       event.preventDefault();
       const input = $("message-input");
-      if (input.value.trim() === "" || !ws) return;
+      if (input.value.trim() === "" || !ws || ws.readyState !== WebSocket.OPEN) return;
       ws.send(input.value);
       input.value = "";
     });
 
-    // Small profile card shown when clicking a username
     async function showUserCard(username) {
       const card = $("profile-card");
       try {
         const p = await api(`/api/users/${encodeURIComponent(username)}`);
         card.innerHTML = "";
-        card.appendChild(makeAvatar(p.username, p.avatar_color, true));
+        card.appendChild(makeAvatar(p.username, p.avatar_color, "big"));
         const info = document.createElement("div");
         const name = document.createElement("strong");
         name.textContent = p.username;
         const bio = document.createElement("p");
         bio.textContent = p.bio || "No bio yet.";
         const since = document.createElement("p");
-        since.className = "system";
         since.textContent = "Member since " + new Date(p.created_at).toLocaleDateString();
         info.append(name, bio, since);
         card.appendChild(info);
@@ -244,30 +526,27 @@
         card.classList.add("hidden");
       }
     }
+    $("profile-card").addEventListener("click", () => $("profile-card").classList.add("hidden"));
 
     // ---------- Profile screen ----------
     $("profile-button").addEventListener("click", async () => {
       const p = await fetchMyProfile();
       if (!p) return logout();
+      closeSocket();
       $("bio-input").value = p.bio;
       $("color-input").value = p.avatar_color;
       $("new-username-input").value = "";
       $("username-password-input").value = "";
-      $("profile-message").textContent = "";
-      $("username-message").textContent = "";
+      setMessage($("profile-message"), "", true);
+      setMessage($("username-message"), "", true);
       show("profile");
     });
 
     $("back-button").addEventListener("click", async () => {
       const p = await fetchMyProfile();
       if (!p) return logout();
-      openChat(p);
+      openChat(p); // reconnecting also picks up a new username / avatar color
     });
-
-    function setMessage(el, text, ok) {
-      el.textContent = text;
-      el.className = ok ? "success" : "error";
-    }
 
     $("profile-form").addEventListener("submit", async (event) => {
       event.preventDefault();
