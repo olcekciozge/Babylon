@@ -1,13 +1,11 @@
-import json
-
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse
-from sqlalchemy import select
 
 from app import auth, models, rooms, users  # noqa: F401  (models registers the tables)
 from app.database import Base, SessionLocal, engine
-from app.models import Message, Room, RoomMember, User
-from app.rooms import iso, is_member
+from app.manager import manager
+from app.models import Message
+from app.rooms import is_member, iso
 
 app = FastAPI()
 
@@ -15,52 +13,6 @@ Base.metadata.create_all(bind=engine)  # creates missing tables
 app.include_router(auth.router)
 app.include_router(users.router)
 app.include_router(rooms.router)
-
-
-def seed_default_room():
-    """Creates the 'General' room on first run and adds all existing users to it."""
-    with SessionLocal() as db:
-        if db.scalar(select(Room).where(Room.name_lower == "general")):
-            return
-        general = Room(name="General", name_lower="general")
-        db.add(general)
-        db.flush()
-        for user_id in db.scalars(select(User.id)):
-            db.add(RoomMember(user_id=user_id, room_id=general.id))
-        db.commit()
-
-
-seed_default_room()
-
-
-class ConnectionManager:
-    def __init__(self):
-        # room_id -> {connection: username}
-        self.rooms: dict[int, dict[WebSocket, str]] = {}
-
-    async def connect(self, room_id: int, websocket: WebSocket, username: str):
-        await websocket.accept()
-        self.rooms.setdefault(room_id, {})[websocket] = username
-
-    def disconnect(self, room_id: int, websocket: WebSocket):
-        room = self.rooms.get(room_id)
-        if room is None:
-            return
-        room.pop(websocket, None)
-        if not room:
-            del self.rooms[room_id]  # nobody left, free the memory
-
-    async def broadcast(self, room_id: int, payload: dict):
-        data = json.dumps(payload)
-        # Only the connections in THIS room receive the message
-        for connection in list(self.rooms.get(room_id, {})):
-            try:
-                await connection.send_text(data)
-            except Exception:
-                self.disconnect(room_id, connection)  # dead connection, drop it
-
-
-manager = ConnectionManager()
 
 
 @app.get("/")

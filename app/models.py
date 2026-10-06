@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from sqlalchemy import DateTime, ForeignKey, String
+from sqlalchemy import Boolean, DateTime, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -21,6 +21,8 @@ class User(Base):
     password_hash: Mapped[str] = mapped_column(String(255))
     bio: Mapped[str] = mapped_column(String(160), default="")
     avatar_color: Mapped[str] = mapped_column(String(7), default="#6366f1")
+    # Used in a later step: when False, the user always appears offline
+    show_online: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
 
 
@@ -30,6 +32,8 @@ class Room(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(30))
     name_lower: Mapped[str] = mapped_column(String(30), unique=True, index=True)
+    # Every room has an owner, who approves join requests and can delete the room
+    owner_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
 
 
@@ -41,6 +45,17 @@ class RoomMember(Base):
     # A composite primary key also guarantees a user can't join the same room twice
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), primary_key=True)
     room_id: Mapped[int] = mapped_column(ForeignKey("rooms.id"), primary_key=True)
+
+
+class JoinRequest(Base):
+    """A pending request to join a room. Approved or denied requests are deleted."""
+
+    __tablename__ = "join_requests"
+
+    # Composite key: one pending request per user per room
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), primary_key=True)
+    room_id: Mapped[int] = mapped_column(ForeignKey("rooms.id"), primary_key=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
 
 
 class Message(Base):

@@ -9,18 +9,9 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     :root {
-      --bg-deep: #1e1f22;
-      --bg-side: #2b2d31;
-      --bg-main: #313338;
-      --bg-input: #383a40;
-      --bg-hover: #35373c;
-      --accent: #800c33;
-      --accent-hover: #800c33;
-      --text: #dbdee1;
-      --text-strong: #f2f3f5;
-      --muted: #949ba4;
-      --danger: #f23f43;
-      --success: #23a55a;
+      --bg-deep: #1e1f22; --bg-side: #2b2d31; --bg-main: #313338; --bg-input: #383a40; --bg-hover: #35373c;
+      --accent: #800c33; --accent-hover: #800c33; --text: #dbdee1; --text-strong: #f2f3f5;
+      --muted: #949ba4; --danger: #f23f43; --success: #23a55a;
       --font: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
     }
     * { box-sizing: border-box; }
@@ -32,7 +23,6 @@
     button, input, textarea { font-family: inherit; font-size: inherit; color: inherit; }
     :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
-    /* ---------- Controls ---------- */
     input, textarea { background: var(--bg-deep); border: 1px solid transparent; border-radius: 4px; padding: 10px 12px; width: 100%; min-width: 0; }
     input:focus, textarea:focus { outline: none; border-color: var(--accent); }
     input::placeholder, textarea::placeholder { color: var(--muted); }
@@ -41,7 +31,9 @@
     .btn:hover { background: var(--accent-hover); }
     .btn.secondary { background: var(--bg-input); color: var(--text); }
     .btn.secondary:hover { background: #4e5058; }
-    .btn.small { padding: 4px 10px; font-size: 13px; }
+    .btn.danger { background: var(--danger); }
+    .btn.danger:hover { background: #c93a3d; }
+    .btn.small { padding: 4px 10px; font-size: 13px; white-space: nowrap; }
     .icon-btn { background: none; border: 0; color: var(--muted); cursor: pointer; padding: 6px 8px; border-radius: 4px; }
     .icon-btn:hover { background: var(--bg-hover); color: var(--text-strong); }
     .error { color: var(--danger); min-height: 1.3em; font-size: 14px; }
@@ -51,12 +43,10 @@
     label { display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 600; color: var(--muted); }
     input[type="color"] { padding: 2px; height: 40px; width: 64px; cursor: pointer; }
 
-    /* ---------- Avatars ---------- */
     .avatar { width: 40px; height: 40px; border-radius: 50%; color: #fff; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; font-weight: 600; font-size: 17px; }
     .avatar.small { width: 32px; height: 32px; font-size: 14px; }
     .avatar.big { width: 64px; height: 64px; font-size: 28px; }
 
-    /* ---------- Centered screens (auth, profile) ---------- */
     .center { min-height: 100%; display: flex; align-items: center; justify-content: center; padding: 24px; background: var(--bg-deep); overflow-y: auto; }
     .panel { background: var(--bg-main); border-radius: 8px; padding: 32px; width: 100%; max-width: 440px; box-shadow: 0 8px 24px rgba(0, 0, 0, .4); }
     .panel h1 { font-size: 24px; font-weight: 700; color: var(--text-strong); text-align: center; }
@@ -64,21 +54,27 @@
     .panel h2 { font-size: 18px; color: var(--text-strong); margin: 28px 0 12px; }
     .panel h2:first-of-type { margin-top: 16px; }
 
-    /* ---------- App layout ---------- */
     .app { display: flex; height: 100dvh; }
-    #sidebar { width: 260px; background: var(--bg-side); display: flex; flex-direction: column; flex-shrink: 0; }
+    #sidebar { width: 280px; background: var(--bg-side); display: flex; flex-direction: column; flex-shrink: 0; }
     .side-head { height: 52px; padding: 0 16px; display: flex; align-items: center; font-weight: 700; font-size: 17px; color: var(--text-strong); border-bottom: 1px solid var(--bg-deep); flex-shrink: 0; }
     .side-scroll { flex: 1; overflow-y: auto; padding: 8px; }
     .side-label { font-size: 12px; font-weight: 600; color: var(--muted); padding: 14px 8px 6px; }
-    .room { display: flex; align-items: center; gap: 4px; border-radius: 4px; padding: 2px 4px 2px 8px; }
+    .pad { padding: 0 4px; }
+    .hint { color: var(--muted); font-size: 13px; padding: 6px 8px; }
+    .room { display: flex; align-items: center; gap: 6px; border-radius: 4px; padding: 2px 4px 2px 8px; }
     .room:hover { background: var(--bg-hover); }
     .room.active { background: #404249; }
     .room .name { flex: 1; min-width: 0; text-align: left; background: none; border: 0; padding: 6px 0; cursor: pointer; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .room span.name { cursor: default; }
     .room:hover .name { color: var(--text); }
     .room.active .name { color: var(--text-strong); font-weight: 500; }
     .room .count { font-size: 12px; color: var(--muted); }
-    #room-form { margin-top: 16px; padding: 0 4px; }
-    #room-error { padding: 4px 8px 0; }
+    .badge { background: var(--danger); color: #fff; border-radius: 10px; font-size: 12px; font-weight: 700; padding: 1px 7px; }
+    .req { background: var(--bg-deep); border-radius: 6px; padding: 8px; margin-bottom: 6px; display: flex; flex-direction: column; gap: 8px; }
+    .req .top { display: flex; gap: 8px; align-items: center; font-size: 13px; min-width: 0; }
+    .req .top strong { color: var(--text-strong); }
+    #room-form { margin-top: 4px; padding: 0 4px; }
+    #side-error { padding: 4px 8px 0; }
     .userbar { background: #232428; padding: 8px; display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
     .userbar .who { flex: 1; min-width: 0; font-weight: 600; color: var(--text-strong); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
@@ -87,8 +83,9 @@
     .room-head h2 { font-size: 16px; font-weight: 700; color: var(--text-strong); }
     #menu-button { display: none; }
     #room-view { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+    #empty-main { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; text-align: center; padding: 24px; color: var(--muted); }
+    #empty-main h2 { color: var(--text-strong); font-size: 20px; }
 
-    /* ---------- Messages ---------- */
     #messages { flex: 1; overflow-y: auto; padding: 16px 0 8px; display: flex; flex-direction: column; }
     .empty { margin: auto; color: var(--muted); text-align: center; padding: 24px; }
     .msg { display: flex; gap: 16px; padding: 2px 16px; margin-top: 16px; }
@@ -108,9 +105,8 @@
     #profile-card strong { color: var(--text-strong); font-size: 17px; }
     #profile-card p { color: var(--muted); font-size: 14px; margin-top: 2px; }
 
-    /* ---------- Mobile ---------- */
     @media (max-width: 700px) {
-      #sidebar { position: fixed; inset: 0 auto 0 0; z-index: 10; transform: translateX(-100%); transition: transform .2s; width: 280px; }
+      #sidebar { position: fixed; inset: 0 auto 0 0; z-index: 10; transform: translateX(-100%); transition: transform .2s; width: 300px; }
       #sidebar.open { transform: none; box-shadow: 0 0 0 100vmax rgba(0, 0, 0, .5); }
       #menu-button { display: inline-block; }
       .msg { gap: 12px; }
@@ -148,16 +144,25 @@
     <aside id="sidebar">
       <div class="side-head">Babylon</div>
       <div class="side-scroll">
+        <div class="side-label">Find a room</div>
+        <div class="pad"><input id="search-input" maxlength="30" autocomplete="off" placeholder="Search rooms by name" /></div>
+        <ul id="search-results"></ul>
+
+        <div id="requests-section" class="hidden">
+          <div class="side-label">Join requests</div>
+          <ul id="requests"></ul>
+        </div>
+
         <div class="side-label">Your rooms</div>
         <ul id="my-rooms"></ul>
-        <div class="side-label">Browse rooms</div>
-        <ul id="other-rooms"></ul>
+        <p id="no-rooms" class="hint hidden">You are not in any room yet. Search for one above or create your own below.</p>
+
         <div class="side-label">New room</div>
         <form id="room-form" class="row">
           <input id="room-name-input" maxlength="30" autocomplete="off" placeholder="Room name" />
           <button class="btn small" type="submit">Create</button>
         </form>
-        <p id="room-error" class="error"></p>
+        <p id="side-error" class="error"></p>
       </div>
       <div class="userbar">
         <span id="me-avatar"></span>
@@ -172,6 +177,10 @@
         <button id="menu-button" class="icon-btn" type="button" aria-label="Show rooms">&#9776;</button>
         <h2 id="room-title"></h2>
       </header>
+      <div id="empty-main" class="hidden">
+        <h2>No room selected</h2>
+        <p>Search for a room by name and ask to join, or create your own room from the side panel.</p>
+      </div>
       <div id="room-view">
         <ul id="messages"></ul>
         <div id="profile-card" class="hidden" title="Click to close"></div>
@@ -211,10 +220,13 @@
     const $ = (id) => document.getElementById(id);
     const screens = { auth: $("auth-screen"), chat: $("chat-screen"), profile: $("profile-screen") };
     const messages = $("messages");
+    const sidebar = $("sidebar");
     let ws = null;
-    let rooms = [];
+    let rooms = [];        // rooms I belong to
+    let requests = [];     // pending join requests for rooms I own
     let currentRoom = null;
-    let lastAuthor = null; // used to group consecutive messages from the same person
+    let lastAuthor = null; // groups consecutive messages from the same person
+    let searchTimer = null;
 
     // ---------- Helpers ----------
     function errorText(detail) {
@@ -250,12 +262,20 @@
       return el;
     }
 
+    function makeButton(text, cls, onClick) {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = cls;
+      b.textContent = text;
+      b.addEventListener("click", onClick);
+      return b;
+    }
+
     function setMessage(el, text, ok) {
       el.textContent = text;
       el.className = ok ? "success" : "error";
     }
 
-    const sidebar = $("sidebar");
     $("menu-button").addEventListener("click", () => sidebar.classList.toggle("open"));
     document.querySelector("main").addEventListener("click", () => sidebar.classList.remove("open"));
 
@@ -302,67 +322,192 @@
       sessionStorage.removeItem("room");
       closeSocket();
       currentRoom = null;
+      rooms = [];
+      requests = [];
+      $("search-input").value = "";
+      $("search-results").innerHTML = "";
       show("auth");
     }
     $("logout-button").addEventListener("click", logout);
 
-    // ---------- Rooms ----------
+    // ---------- Sidebar data ----------
     async function loadRooms() {
       rooms = await api("/api/rooms");
       renderRooms();
     }
 
+    async function loadRequests() {
+      requests = await api("/api/rooms/requests");
+      renderRequests();
+    }
+
+    // Reloads everything in the sidebar. Also runs every 10 seconds, so approvals show up on their own.
+    async function refreshSidebar() {
+      try {
+        await loadRooms();
+        await loadRequests();
+        // The current room disappeared (deleted, or I was removed): move to another one
+        if (currentRoom && !rooms.some((r) => r.id === currentRoom.id)) selectRoom(rooms[0] || null);
+        if ($("search-input").value.trim()) await runSearch();
+      } catch { /* ignore temporary network errors */ }
+    }
+    setInterval(() => { if (!screens.chat.classList.contains("hidden")) refreshSidebar(); }, 10000);
+
     function renderRooms() {
-      $("my-rooms").innerHTML = "";
-      $("other-rooms").innerHTML = "";
+      const list = $("my-rooms");
+      list.innerHTML = "";
+      $("no-rooms").classList.toggle("hidden", rooms.length > 0);
 
       for (const room of rooms) {
         const li = document.createElement("li");
-        li.className = "room";
+        li.className = "room" + (currentRoom && currentRoom.id === room.id ? " active" : "");
+        li.appendChild(makeButton(`# ${room.name}`, "name", () => selectRoom(room)));
 
-        const name = document.createElement("button");
-        name.type = "button";
-        name.className = "name";
-        name.textContent = `# ${room.name}`;
+        if (room.pending_count > 0) {
+          const badge = document.createElement("span");
+          badge.className = "badge";
+          badge.title = "Pending join requests";
+          badge.textContent = room.pending_count;
+          li.appendChild(badge);
+        }
         const count = document.createElement("span");
         count.className = "count";
         count.textContent = room.member_count;
+        li.appendChild(count);
 
-        const action = document.createElement("button");
-        action.type = "button";
-        action.className = "btn secondary small";
+        // Owners delete the room, everyone else can leave it
+        li.appendChild(room.is_owner
+          ? makeButton("Delete", "btn danger small", () => deleteRoom(room))
+          : makeButton("Leave", "btn secondary small", () => leaveRoom(room)));
+        list.appendChild(li);
+      }
+    }
 
-        li.append(name, count, action);
-        if (room.is_member) {
-          if (currentRoom && currentRoom.id === room.id) li.classList.add("active");
-          name.addEventListener("click", () => selectRoom(room));
-          action.textContent = "Leave";
-          action.addEventListener("click", () => leaveRoom(room));
-          $("my-rooms").appendChild(li);
-        } else {
-          name.addEventListener("click", () => joinRoom(room));
-          action.textContent = "Join";
-          action.addEventListener("click", () => joinRoom(room));
-          $("other-rooms").appendChild(li);
+    function renderRequests() {
+      const list = $("requests");
+      list.innerHTML = "";
+      $("requests-section").classList.toggle("hidden", requests.length === 0);
+
+      for (const req of requests) {
+        const li = document.createElement("li");
+        li.className = "req";
+
+        const who = document.createElement("strong");
+        who.textContent = req.username;
+        const info = document.createElement("span");
+        info.append(who, ` wants to join #${req.room_name}`);
+        const top = document.createElement("div");
+        top.className = "top";
+        top.append(makeAvatar(req.username, req.avatar_color, "small"), info);
+
+        const buttons = document.createElement("div");
+        buttons.className = "row";
+        buttons.append(
+          makeButton("Accept", "btn small", () => answerRequest(req, "approve")),
+          makeButton("Decline", "btn secondary small", () => answerRequest(req, "deny")),
+        );
+        li.append(top, buttons);
+        list.appendChild(li);
+      }
+    }
+
+    async function answerRequest(req, action) {
+      $("side-error").textContent = "";
+      try {
+        await api(`/api/rooms/${req.room_id}/requests/${req.user_id}/${action}`, { method: "POST" });
+      } catch (error) {
+        $("side-error").textContent = error.message;
+      }
+      await refreshSidebar();
+    }
+
+    // ---------- Room search ----------
+    async function runSearch() {
+      const q = $("search-input").value.trim();
+      const list = $("search-results");
+      if (!q) { list.innerHTML = ""; return; }
+      try {
+        const results = await api(`/api/rooms/search?q=${encodeURIComponent(q)}`);
+        if ($("search-input").value.trim() !== q) return; // the user kept typing, ignore this old answer
+        list.innerHTML = "";
+
+        if (results.length === 0) {
+          const none = document.createElement("li");
+          none.className = "hint";
+          none.textContent = "No rooms match that name.";
+          list.appendChild(none);
+          return;
         }
-      }
+        for (const r of results) {
+          const li = document.createElement("li");
+          li.className = "room";
+          const name = document.createElement("span");
+          name.className = "name";
+          name.textContent = `# ${r.name}`;
+          li.appendChild(name);
+
+          if (r.status === "member") {
+            li.appendChild(makeButton("Open", "btn secondary small", () => {
+              const mine = rooms.find((x) => x.id === r.id);
+              if (mine) selectRoom(mine);
+            }));
+          } else if (r.status === "pending") {
+            li.appendChild(makeButton("Cancel request", "btn secondary small", () => cancelRequest(r)));
+          } else {
+            li.appendChild(makeButton("Request to join", "btn small", () => requestToJoin(r)));
+          }
+          list.appendChild(li);
+        }
+      } catch { /* ignore */ }
     }
 
-    async function joinRoom(room) {
-      await api(`/api/rooms/${room.id}/join`, { method: "POST" });
-      await loadRooms();
-      selectRoom(rooms.find((r) => r.id === room.id));
+    $("search-input").addEventListener("input", () => {
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(runSearch, 250); // wait until the user pauses typing
+    });
+
+    async function requestToJoin(room) {
+      $("side-error").textContent = "";
+      try { await api(`/api/rooms/${room.id}/request`, { method: "POST" }); }
+      catch (error) { $("side-error").textContent = error.message; }
+      runSearch();
     }
 
+    async function cancelRequest(room) {
+      try { await api(`/api/rooms/${room.id}/request`, { method: "DELETE" }); }
+      catch (error) { $("side-error").textContent = error.message; }
+      runSearch();
+    }
+
+    // ---------- Room actions ----------
     async function leaveRoom(room) {
-      await api(`/api/rooms/${room.id}/leave`, { method: "DELETE" });
-      await loadRooms();
-      if (currentRoom && currentRoom.id === room.id) {
-        closeSocket();
-        currentRoom = null;
-        selectRoom(rooms.find((r) => r.is_member) || null);
-      }
+      if (!confirm(`Leave #${room.name}? You will have to ask to join again.`)) return;
+      try { await api(`/api/rooms/${room.id}/leave`, { method: "DELETE" }); }
+      catch (error) { $("side-error").textContent = error.message; return; }
+      if (currentRoom && currentRoom.id === room.id) closeSocket();
+      await refreshSidebar();
     }
+
+    async function deleteRoom(room) {
+      if (!confirm(`Delete #${room.name}? All of its messages will be lost.`)) return;
+      try { await api(`/api/rooms/${room.id}`, { method: "DELETE" }); }
+      catch (error) { $("side-error").textContent = error.message; return; }
+      if (currentRoom && currentRoom.id === room.id) closeSocket();
+      await refreshSidebar();
+    }
+
+    $("room-form").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      $("side-error").textContent = "";
+      try {
+        const created = await api("/api/rooms", jsonRequest("POST", { name: $("room-name-input").value.trim() }));
+        $("room-name-input").value = "";
+        await loadRooms();
+        selectRoom(rooms.find((r) => r.id === created.id));
+      } catch (error) {
+        $("side-error").textContent = error.message;
+      }
+    });
 
     async function selectRoom(room) {
       closeSocket();
@@ -373,14 +518,14 @@
       sidebar.classList.remove("open");
       renderRooms();
 
+      $("empty-main").classList.toggle("hidden", !!room);
+      $("room-view").classList.toggle("hidden", !room);
       if (!room) {
-        $("room-title").textContent = "No room selected";
-        $("room-view").classList.add("hidden");
+        $("room-title").textContent = "";
         return;
       }
       sessionStorage.setItem("room", room.id);
       $("room-title").textContent = `# ${room.name}`;
-      $("room-view").classList.remove("hidden");
       $("message-input").placeholder = `Message #${room.name}`;
 
       try {
@@ -401,28 +546,15 @@
       $("message-input").focus();
     }
 
-    $("room-form").addEventListener("submit", async (event) => {
-      event.preventDefault();
-      $("room-error").textContent = "";
-      try {
-        const created = await api("/api/rooms", jsonRequest("POST", { name: $("room-name-input").value.trim() }));
-        $("room-name-input").value = "";
-        await loadRooms();
-        selectRoom(rooms.find((r) => r.id === created.id));
-      } catch (error) {
-        $("room-error").textContent = error.message;
-      }
-    });
-
     // ---------- Chat ----------
     async function openChat(profile) {
       $("current-user").textContent = profile.username;
       $("me-avatar").replaceChildren(makeAvatar(profile.username, profile.avatar_color, "small"));
       show("chat");
       await loadRooms();
-      const mine = rooms.filter((r) => r.is_member);
+      loadRequests().catch(() => {});
       const saved = Number(sessionStorage.getItem("room"));
-      selectRoom(mine.find((r) => r.id === saved) || mine[0] || null);
+      selectRoom(rooms.find((r) => r.id === saved) || rooms[0] || null);
     }
 
     function closeSocket() {
@@ -438,7 +570,12 @@
         if (data.type === "system") addSystemLine(data.text);
         else addMessage(data);
       };
-      ws.onclose = async () => {
+      ws.onclose = async (event) => {
+        ws = null;
+        if (event.code === 4004) { // the server closes with 4004 when the owner deletes the room
+          alert("This room was deleted by its owner.");
+          return refreshSidebar();
+        }
         if (!(await fetchMyProfile())) logout();
         else addSystemLine("Disconnected. Select the room again to reconnect.");
       };
@@ -474,24 +611,16 @@
       if (grouped) {
         li.appendChild(text);
       } else {
-        const author = document.createElement("button");
-        author.type = "button";
-        author.className = "author";
-        author.textContent = data.username;
-        author.addEventListener("click", () => showUserCard(data.username));
-
+        const author = makeButton(data.username, "author", () => showUserCard(data.username));
         const stamp = document.createElement("span");
         stamp.className = "time";
         stamp.textContent = time;
-
         const head = document.createElement("div");
         head.className = "head";
         head.append(author, stamp);
-
         const body = document.createElement("div");
         body.className = "body";
         body.append(head, text);
-
         li.append(makeAvatar(data.username, data.avatar_color), body);
       }
       messages.appendChild(li);
