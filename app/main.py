@@ -3,7 +3,7 @@ import json
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse
 
-from app import auth, models, rooms, users  # noqa: F401  (models registers the tables)
+from app import auth, friends, models, rooms, users  # noqa: F401  (models registers the tables)
 from app.database import Base, SessionLocal, engine
 from app.manager import manager
 from app.models import Message
@@ -15,6 +15,7 @@ Base.metadata.create_all(bind=engine)  # creates missing tables
 app.include_router(auth.router)
 app.include_router(users.router)
 app.include_router(rooms.router)
+app.include_router(friends.router)
 
 
 @app.get("/")

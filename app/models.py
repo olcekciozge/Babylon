@@ -68,3 +68,13 @@ class Message(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
 
     user: Mapped[User] = relationship()
+
+class Friendship(Base):
+    """One row per relationship. 'pending' means requester asked, addressee hasn't answered."""
+
+    __tablename__ = "friendships"
+
+    requester_id: Mapped[int] = mapped_column(ForeignKey("users.id"), primary_key=True)
+    addressee_id: Mapped[int] = mapped_column(ForeignKey("users.id"), primary_key=True)
+    status: Mapped[str] = mapped_column(String(10), default="pending")  # pending | accepted
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)

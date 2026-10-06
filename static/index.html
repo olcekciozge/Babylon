@@ -163,7 +163,16 @@
 
         <div class="side-label">Your rooms</div>
         <ul id="my-rooms"></ul>
-        <p id="no-rooms" class="hint hidden">You are not in any room yet. Search for one above or create your own below.</p>
+        <p id="no-rooms" class="hint hidden">You are not in any room yet. Search for one above or create your own with the + button.</p>
+
+        <div class="side-label">Friends</div>
+        <form id="friend-form" class="row pad">
+          <input id="friend-input" maxlength="20" autocomplete="off" placeholder="Add a friend by username" />
+          <button class="btn small" type="submit">Add</button>
+        </form>
+        <ul id="friend-requests"></ul>
+        <ul id="friends"></ul>
+        <p id="no-friends" class="hint">No friends yet. Add someone by their username.</p>
 
         <p id="side-error" class="error"></p>
       </div>
@@ -242,6 +251,7 @@
     let rooms = [];        // rooms I belong to
     let requests = [];     // pending join requests for rooms I own
     let currentRoom = null;
+    let friendData = { friends: [], incoming: [], outgoing: [] };
     let lastAuthor = null; // groups consecutive messages from the same person
     let searchTimer = null;
 
@@ -382,6 +392,8 @@
       currentRoom = null;
       rooms = [];
       requests = [];
+      friendData = { friends: [], incoming: [], outgoing: [] };
+      renderFriends();
       $("search-input").value = "";
       $("search-results").innerHTML = "";
       show("auth");
@@ -419,6 +431,7 @@
       try {
         await loadRooms();
         await loadRequests();
+        await loadFriends();
         // The current room disappeared (deleted, or I was removed): move to another one
         if (currentRoom && !rooms.some((r) => r.id === currentRoom.id)) selectRoom(rooms[0] || null);
         if ($("search-input").value.trim()) await runSearch();
@@ -492,6 +505,99 @@
         $("side-error").textContent = error.message;
       }
       await refreshSidebar();
+    }
+
+    // ---------- Friends ----------
+    async function loadFriends() {
+      friendData = await api("/api/friends");
+      renderFriends();
+    }
+
+    function renderFriends() {
+      const { friends, incoming, outgoing } = friendData;
+
+      // Requests other people sent to me
+      const requestList = $("friend-requests");
+      requestList.innerHTML = "";
+      for (const person of incoming) {
+        const li = document.createElement("li");
+        li.className = "req";
+        const who = document.createElement("strong");
+        who.textContent = person.username;
+        const info = document.createElement("span");
+        info.append(who, " wants to be your friend");
+        const top = document.createElement("div");
+        top.className = "top";
+        top.append(makeAvatar(person.username, person.avatar_color, "small"), info);
+        const buttons = document.createElement("div");
+        buttons.className = "row";
+        buttons.append(
+          makeButton("Accept", "btn small", () => acceptFriend(person)),
+          makeButton("Decline", "btn secondary small", () => removeFriend(person)),
+        );
+        li.append(top, buttons);
+        requestList.appendChild(li);
+      }
+
+      // Requests I sent, then my friends
+      const list = $("friends");
+      list.innerHTML = "";
+      for (const person of outgoing) {
+        const li = document.createElement("li");
+        li.className = "room";
+        const name = document.createElement("span");
+        name.className = "name";
+        name.textContent = `${person.username} (request sent)`;
+        li.append(
+          makeAvatar(person.username, person.avatar_color, "small"),
+          name,
+          makeButton("Cancel", "btn secondary small", () => removeFriend(person)),
+        );
+        list.appendChild(li);
+      }
+      for (const person of friends) {
+        const li = document.createElement("li");
+        li.className = "room";
+        li.append(
+          makeAvatar(person.username, person.avatar_color, "small"),
+          makeButton(person.username, "name", () => {
+            sidebar.classList.remove("open");
+            showUserCard(person.username);
+          }),
+          makeButton("Remove", "btn secondary small", () => {
+            if (confirm(`Remove ${person.username} from your friends?`)) removeFriend(person);
+          }),
+        );
+        list.appendChild(li);
+      }
+      $("no-friends").classList.toggle("hidden", friends.length + incoming.length + outgoing.length > 0);
+    }
+
+    $("friend-form").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      $("side-error").textContent = "";
+      const username = $("friend-input").value.trim();
+      if (!username) return;
+      try {
+        await api("/api/friends/request", jsonRequest("POST", { username }));
+        $("friend-input").value = "";
+        await loadFriends();
+      } catch (error) {
+        $("side-error").textContent = error.message;
+      }
+    });
+
+    async function acceptFriend(person) {
+      try { await api(`/api/friends/${person.id}/accept`, { method: "POST" }); }
+      catch (error) { $("side-error").textContent = error.message; }
+      await loadFriends();
+    }
+
+    // Declines a request, cancels one I sent, or removes a friend
+    async function removeFriend(person) {
+      try { await api(`/api/friends/${person.id}`, { method: "DELETE" }); }
+      catch (error) { $("side-error").textContent = error.message; }
+      await loadFriends();
     }
 
     // ---------- Room search ----------
@@ -652,6 +758,7 @@
       show("chat");
       await loadRooms();
       loadRequests().catch(() => {});
+      loadFriends().catch(() => {});
       const saved = Number(sessionStorage.getItem("room"));
       selectRoom(rooms.find((r) => r.id === saved) || rooms[0] || null);
     }
