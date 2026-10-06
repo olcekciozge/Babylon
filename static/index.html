@@ -10,7 +10,7 @@
   <style>
     :root {
       --bg-deep: #1e1f22; --bg-side: #2b2d31; --bg-main: #313338; --bg-input: #383a40; --bg-hover: #35373c;
-      --accent: #800c33; --accent-hover: #800c33; --text: #dbdee1; --text-strong: #f2f3f5;
+      --accent: #800c33; --accent-hover: #9f1b47; --text: #dbdee1; --text-strong: #f2f3f5;
       --muted: #949ba4; --danger: #f23f43; --success: #23a55a;
       --font: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
     }
@@ -73,7 +73,11 @@
     .req { background: var(--bg-deep); border-radius: 6px; padding: 8px; margin-bottom: 6px; display: flex; flex-direction: column; gap: 8px; }
     .req .top { display: flex; gap: 8px; align-items: center; font-size: 13px; min-width: 0; }
     .req .top strong { color: var(--text-strong); }
-    #room-form { margin-top: 4px; padding: 0 4px; }
+    .side-head { justify-content: space-between; }
+    .plus { font-size: 22px; line-height: 1; padding: 2px 10px; }
+    dialog { background: var(--bg-main); color: var(--text); border: 0; border-radius: 8px; padding: 24px; width: min(400px, calc(100vw - 32px)); box-shadow: 0 8px 24px rgba(0, 0, 0, .5); }
+    dialog::backdrop { background: rgba(0, 0, 0, .6); }
+    dialog h2 { font-size: 18px; color: var(--text-strong); }
     #side-error { padding: 4px 8px 0; }
     .userbar { background: #232428; padding: 8px; display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
     .userbar .who { flex: 1; min-width: 0; font-weight: 600; color: var(--text-strong); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -104,6 +108,7 @@
     #profile-card { margin: 0 16px 12px; background: var(--bg-side); border-radius: 8px; padding: 16px; display: flex; gap: 16px; align-items: center; cursor: pointer; flex-shrink: 0; }
     #profile-card strong { color: var(--text-strong); font-size: 17px; }
     #profile-card p { color: var(--muted); font-size: 14px; margin-top: 2px; }
+    .typing { padding: 0 16px 4px 20px; min-height: 22px; font-size: 13px; color: var(--muted); flex-shrink: 0; }
 
     @media (max-width: 700px) {
       #sidebar { position: fixed; inset: 0 auto 0 0; z-index: 10; transform: translateX(-100%); transition: transform .2s; width: 300px; }
@@ -142,7 +147,10 @@
   <!-- Chat screen -->
   <div id="chat-screen" class="app hidden">
     <aside id="sidebar">
-      <div class="side-head">Babylon</div>
+      <div class="side-head">
+        <span>Babylon</span>
+        <button id="new-room-button" class="icon-btn plus" type="button" title="Create a room" aria-label="Create a room">+</button>
+      </div>
       <div class="side-scroll">
         <div class="side-label">Find a room</div>
         <div class="pad"><input id="search-input" maxlength="30" autocomplete="off" placeholder="Search rooms by name" /></div>
@@ -157,11 +165,6 @@
         <ul id="my-rooms"></ul>
         <p id="no-rooms" class="hint hidden">You are not in any room yet. Search for one above or create your own below.</p>
 
-        <div class="side-label">New room</div>
-        <form id="room-form" class="row">
-          <input id="room-name-input" maxlength="30" autocomplete="off" placeholder="Room name" />
-          <button class="btn small" type="submit">Create</button>
-        </form>
         <p id="side-error" class="error"></p>
       </div>
       <div class="userbar">
@@ -176,6 +179,7 @@
       <header class="room-head">
         <button id="menu-button" class="icon-btn" type="button" aria-label="Show rooms">&#9776;</button>
         <h2 id="room-title"></h2>
+        <button id="rename-button" class="icon-btn hidden" type="button" title="Rename this room">Rename</button>
       </header>
       <div id="empty-main" class="hidden">
         <h2>No room selected</h2>
@@ -184,6 +188,7 @@
       <div id="room-view">
         <ul id="messages"></ul>
         <div id="profile-card" class="hidden" title="Click to close"></div>
+        <div id="typing" class="typing" aria-live="polite"></div>
         <form id="chat-form" class="composer">
           <input id="message-input" autocomplete="off" maxlength="1000" placeholder="Type a message" />
         </form>
@@ -216,6 +221,18 @@
     </div>
   </div>
 
+  <dialog id="room-dialog">
+    <form id="room-form" class="stack">
+      <h2 id="dialog-title"></h2>
+      <input id="room-name-input" maxlength="30" autocomplete="off" placeholder="Room name" />
+      <p id="dialog-error" class="error"></p>
+      <div class="row" style="justify-content: flex-end">
+        <button id="dialog-cancel" class="btn secondary" type="button">Cancel</button>
+        <button id="dialog-submit" class="btn" type="submit"></button>
+      </div>
+    </form>
+  </dialog>
+
   <script>
     const $ = (id) => document.getElementById(id);
     const screens = { auth: $("auth-screen"), chat: $("chat-screen"), profile: $("profile-screen") };
@@ -227,6 +244,47 @@
     let currentRoom = null;
     let lastAuthor = null; // groups consecutive messages from the same person
     let searchTimer = null;
+
+    // ---------- Typing indicator ----------
+    const typers = new Map();   // username -> timeout that removes them after a short silence
+    let lastTypingSent = 0;
+
+    function renderTyping() {
+      const names = [...typers.keys()];
+      let text = "";
+      if (names.length === 1) text = `${names[0]} is typing...`;
+      else if (names.length === 2) text = `${names[0]} and ${names[1]} are typing...`;
+      else if (names.length > 2) text = "Several people are typing...";
+      $("typing").textContent = text;
+    }
+
+    function setTyping(username) {
+      clearTimeout(typers.get(username));
+      // Server events arrive at most every 2 seconds, so 3.5 seconds of silence means they stopped
+      typers.set(username, setTimeout(() => { typers.delete(username); renderTyping(); }, 3500));
+      renderTyping();
+    }
+
+    function stopTyping(username) {
+      clearTimeout(typers.get(username));
+      typers.delete(username);
+      renderTyping();
+    }
+
+    function clearTypers() {
+      typers.forEach(clearTimeout);
+      typers.clear();
+      renderTyping();
+    }
+
+    // Tell the server we are typing, but at most once every 2 seconds
+    $("message-input").addEventListener("input", () => {
+      const now = Date.now();
+      if (!ws || ws.readyState !== WebSocket.OPEN) return;
+      if ($("message-input").value.trim() === "" || now - lastTypingSent < 2000) return;
+      lastTypingSent = now;
+      ws.send(JSON.stringify({ type: "typing" }));
+    });
 
     // ---------- Helpers ----------
     function errorText(detail) {
@@ -331,8 +389,23 @@
     $("logout-button").addEventListener("click", logout);
 
     // ---------- Sidebar data ----------
+    // Shows the open room's name in the header and the input placeholder
+    function updateHeader() {
+      if (!currentRoom) return;
+      $("room-title").textContent = currentRoom.name;
+      $("message-input").placeholder = `Message ${currentRoom.name}`;
+      $("rename-button").classList.toggle("hidden", !currentRoom.is_owner);
+    }
+
     async function loadRooms() {
       rooms = await api("/api/rooms");
+      // Update the open room in place (not replaced), so a rename shows up without reconnecting
+      const fresh = currentRoom && rooms.find((r) => r.id === currentRoom.id);
+      if (fresh) {
+        currentRoom.name = fresh.name;
+        currentRoom.is_owner = fresh.is_owner;
+        updateHeader();
+      }
       renderRooms();
     }
 
@@ -361,7 +434,7 @@
       for (const room of rooms) {
         const li = document.createElement("li");
         li.className = "room" + (currentRoom && currentRoom.id === room.id ? " active" : "");
-        li.appendChild(makeButton(`# ${room.name}`, "name", () => selectRoom(room)));
+        li.appendChild(makeButton(room.name, "name", () => selectRoom(room)));
 
         if (room.pending_count > 0) {
           const badge = document.createElement("span");
@@ -395,7 +468,7 @@
         const who = document.createElement("strong");
         who.textContent = req.username;
         const info = document.createElement("span");
-        info.append(who, ` wants to join #${req.room_name}`);
+        info.append(who, ` wants to join ${req.room_name}`);
         const top = document.createElement("div");
         top.className = "top";
         top.append(makeAvatar(req.username, req.avatar_color, "small"), info);
@@ -443,7 +516,7 @@
           li.className = "room";
           const name = document.createElement("span");
           name.className = "name";
-          name.textContent = `# ${r.name}`;
+          name.textContent = r.name;
           li.appendChild(name);
 
           if (r.status === "member") {
@@ -481,7 +554,7 @@
 
     // ---------- Room actions ----------
     async function leaveRoom(room) {
-      if (!confirm(`Leave #${room.name}? You will have to ask to join again.`)) return;
+      if (!confirm(`Leave ${room.name}? You will have to ask to join again.`)) return;
       try { await api(`/api/rooms/${room.id}/leave`, { method: "DELETE" }); }
       catch (error) { $("side-error").textContent = error.message; return; }
       if (currentRoom && currentRoom.id === room.id) closeSocket();
@@ -489,23 +562,48 @@
     }
 
     async function deleteRoom(room) {
-      if (!confirm(`Delete #${room.name}? All of its messages will be lost.`)) return;
+      if (!confirm(`Delete ${room.name}? All of its messages will be lost.`)) return;
       try { await api(`/api/rooms/${room.id}`, { method: "DELETE" }); }
       catch (error) { $("side-error").textContent = error.message; return; }
       if (currentRoom && currentRoom.id === room.id) closeSocket();
       await refreshSidebar();
     }
 
+    // ---------- Create / rename dialog ----------
+    let dialogRoom = null; // null = creating a room, otherwise the room being renamed
+
+    function openRoomDialog(room = null) {
+      dialogRoom = room;
+      $("dialog-title").textContent = room ? "Rename room" : "Create a room";
+      $("dialog-submit").textContent = room ? "Save" : "Create";
+      $("room-name-input").value = room ? room.name : "";
+      $("dialog-error").textContent = "";
+      sidebar.classList.remove("open");
+      $("room-dialog").showModal();
+      $("room-name-input").select();
+    }
+
+    $("new-room-button").addEventListener("click", () => openRoomDialog());
+    $("rename-button").addEventListener("click", () => { if (currentRoom) openRoomDialog(currentRoom); });
+    $("dialog-cancel").addEventListener("click", () => $("room-dialog").close());
+
     $("room-form").addEventListener("submit", async (event) => {
       event.preventDefault();
-      $("side-error").textContent = "";
+      $("dialog-error").textContent = "";
+      const name = $("room-name-input").value.trim();
       try {
-        const created = await api("/api/rooms", jsonRequest("POST", { name: $("room-name-input").value.trim() }));
-        $("room-name-input").value = "";
-        await loadRooms();
-        selectRoom(rooms.find((r) => r.id === created.id));
+        if (dialogRoom) {
+          await api(`/api/rooms/${dialogRoom.id}`, jsonRequest("PUT", { name }));
+          $("room-dialog").close();
+          await loadRooms(); // also refreshes the header
+        } else {
+          const created = await api("/api/rooms", jsonRequest("POST", { name }));
+          $("room-dialog").close();
+          await loadRooms();
+          selectRoom(rooms.find((r) => r.id === created.id));
+        }
       } catch (error) {
-        $("side-error").textContent = error.message;
+        $("dialog-error").textContent = error.message;
       }
     });
 
@@ -514,6 +612,7 @@
       currentRoom = room;
       lastAuthor = null;
       messages.innerHTML = "";
+      clearTypers();
       $("profile-card").classList.add("hidden");
       sidebar.classList.remove("open");
       renderRooms();
@@ -522,11 +621,11 @@
       $("room-view").classList.toggle("hidden", !room);
       if (!room) {
         $("room-title").textContent = "";
+        $("rename-button").classList.add("hidden");
         return;
       }
       sessionStorage.setItem("room", room.id);
-      $("room-title").textContent = `# ${room.name}`;
-      $("message-input").placeholder = `Message #${room.name}`;
+      updateHeader();
 
       try {
         const history = await api(`/api/rooms/${room.id}/messages`);
@@ -536,7 +635,7 @@
           const empty = document.createElement("li");
           empty.className = "empty";
           empty.id = "empty-note";
-          empty.textContent = `This is the start of #${room.name}. Say hello!`;
+          empty.textContent = `This is the start of ${room.name}. Say hello!`;
           messages.appendChild(empty);
         }
       } catch (error) {
@@ -567,8 +666,14 @@
       ws = new WebSocket(`${protocol}://${location.host}/ws/${room.id}?token=${encodeURIComponent(token)}`);
       ws.onmessage = (event) => {
         const data = JSON.parse(event.data);
-        if (data.type === "system") addSystemLine(data.text);
-        else addMessage(data);
+        if (data.type === "typing") {
+          setTyping(data.username);
+        } else if (data.type === "system") {
+          addSystemLine(data.text);
+        } else {
+          stopTyping(data.username); // they sent their message, so they are no longer typing
+          addMessage(data);
+        }
       };
       ws.onclose = async (event) => {
         ws = null;
@@ -631,8 +736,9 @@
       event.preventDefault();
       const input = $("message-input");
       if (input.value.trim() === "" || !ws || ws.readyState !== WebSocket.OPEN) return;
-      ws.send(input.value);
+      ws.send(JSON.stringify({ type: "message", text: input.value }));
       input.value = "";
+      lastTypingSent = 0; // the next keystroke may announce typing right away
     });
 
     async function showUserCard(username) {

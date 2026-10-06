@@ -157,6 +157,34 @@ async def delete_room(
     await manager.close_room(room_id)
     return {"deleted": True}
 
+# ---------- Renaming ----------
+@router.put("/{room_id}")
+def rename_room(
+    room_id: int,
+    data: RoomCreate,  # same name rules as creating a room
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    room = get_owned_room(db, room_id, user)
+    name = data.name.strip()
+    if len(name) < 3:
+        raise HTTPException(status_code=422, detail="Room name must be at least 3 characters")
+
+    # Exclude the room itself, so changing only the casing ("club" -> "Club") is allowed
+    taken = db.scalar(
+        select(Room).where(Room.name_lower == name.lower(), Room.id != room_id)
+    )
+    if taken:
+        raise HTTPException(status_code=409, detail="Room name is already taken")
+
+    room.name = name
+    room.name_lower = name.lower()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="Room name is already taken")
+    return {"id": room.id, "name": room.name}
 
 # ---------- Join requests ----------
 @router.post("/{room_id}/request")

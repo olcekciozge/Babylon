@@ -20,10 +20,12 @@ class ConnectionManager:
         if not room:
             del self.rooms[room_id]  # nobody left, free the memory
 
-    async def broadcast(self, room_id: int, payload: dict):
+    async def broadcast(self, room_id: int, payload: dict, exclude: WebSocket | None = None):
         data = json.dumps(payload)
         # Only the connections in THIS room receive the message
         for connection in list(self.rooms.get(room_id, {})):
+            if connection is exclude:
+                continue
             try:
                 await connection.send_text(data)
             except Exception:

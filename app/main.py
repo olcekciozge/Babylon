@@ -1,3 +1,5 @@
+import json
+
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse
 
@@ -39,22 +41,37 @@ async def chat(websocket: WebSocket, room_id: int, token: str = ""):
     await manager.broadcast(room_id, {"type": "system", "text": f"{username} joined the chat"})
     try:
         while True:
-            text = (await websocket.receive_text()).strip()[:1000]
-            if not text:
+            # Clients send JSON: {"type": "message", "text": "..."} or {"type": "typing"}
+            try:
+                event = json.loads(await websocket.receive_text())
+            except ValueError:
+                continue  # not valid JSON, ignore it
+            if not isinstance(event, dict):
                 continue
-            # Save first, then broadcast, so what users see is what's stored
-            with SessionLocal() as db:
-                message = Message(room_id=room_id, user_id=info["id"], text=text)
-                db.add(message)
-                db.commit()
-                created_at = iso(message.created_at)
-            await manager.broadcast(room_id, {
-                "type": "message",
-                "username": username,
-                "avatar_color": info["color"],
-                "text": text,
-                "created_at": created_at,
-            })
+
+            if event.get("type") == "typing":
+                # Tell everyone except the person who is typing
+                await manager.broadcast(
+                    room_id, {"type": "typing", "username": username}, exclude=websocket
+                )
+
+            elif event.get("type") == "message":
+                text = str(event.get("text", "")).strip()[:1000]
+                if not text:
+                    continue
+                # Save first, then broadcast, so what users see is what's stored
+                with SessionLocal() as db:
+                    message = Message(room_id=room_id, user_id=info["id"], text=text)
+                    db.add(message)
+                    db.commit()
+                    created_at = iso(message.created_at)
+                await manager.broadcast(room_id, {
+                    "type": "message",
+                    "username": username,
+                    "avatar_color": info["color"],
+                    "text": text,
+                    "created_at": created_at,
+                })
     except WebSocketDisconnect:
         manager.disconnect(room_id, websocket)
         await manager.broadcast(room_id, {"type": "system", "text": f"{username} left the chat"})
