@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from app.auth import get_current_user
 from app.database import get_db
 from app.manager import manager
-from app.models import JoinRequest, Message, Room, RoomMember, User
+from app.models import DirectChat, JoinRequest, Message, Room, RoomMember, User
 
 router = APIRouter(prefix="/api/rooms", tags=["rooms"])
 
@@ -29,10 +29,17 @@ def is_member(db: Session, user_id: int, room_id: int) -> bool:
     return db.get(RoomMember, (user_id, room_id)) is not None
 
 
+def is_direct(db: Session, room_id: int) -> bool:
+    """Private chats between two friends are stored as hidden rooms."""
+    return db.get(DirectChat, room_id) is not None
+
+
 def get_owned_room(db: Session, room_id: int, user: User) -> Room:
     room = db.get(Room, room_id)
     if room is None:
         raise HTTPException(status_code=404, detail="Room not found")
+    if is_direct(db, room_id):
+        raise HTTPException(status_code=400, detail="Private chats can't be changed")
     if room.owner_id != user.id:
         raise HTTPException(status_code=403, detail="Only the room owner can do this")
     return room
@@ -56,6 +63,7 @@ def list_my_rooms(user: User = Depends(get_current_user), db: Session = Depends(
         select(Room)
         .join(RoomMember, RoomMember.room_id == Room.id)
         .where(RoomMember.user_id == user.id)
+        .where(Room.id.not_in(select(DirectChat.room_id)))
         .order_by(Room.name_lower)
     ).all()
     result = []
@@ -86,6 +94,7 @@ def search_rooms(
     rooms = db.scalars(
         select(Room)
         .where(Room.name_lower.contains(q, autoescape=True))
+        .where(Room.id.not_in(select(DirectChat.room_id)))
         .order_by(Room.name_lower)
         .limit(20)
     ).all()
@@ -132,6 +141,8 @@ def create_room(
 def leave_room(
     room_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)
 ):
+    if is_direct(db, room_id):
+        raise HTTPException(status_code=400, detail="Private chats can't be left")
     room = db.get(Room, room_id)
     if room and room.owner_id == user.id:
         raise HTTPException(status_code=400, detail="Owners can't leave. Delete the room instead")
@@ -156,6 +167,7 @@ async def delete_room(
     db.commit()
     await manager.close_room(room_id)
     return {"deleted": True}
+
 
 # ---------- Renaming ----------
 @router.put("/{room_id}")
@@ -186,12 +198,13 @@ def rename_room(
         raise HTTPException(status_code=409, detail="Room name is already taken")
     return {"id": room.id, "name": room.name}
 
+
 # ---------- Join requests ----------
 @router.post("/{room_id}/request")
 def request_to_join(
     room_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)
 ):
-    if db.get(Room, room_id) is None:
+    if db.get(Room, room_id) is None or is_direct(db, room_id):
         raise HTTPException(status_code=404, detail="Room not found")
     if is_member(db, user.id, room_id):
         return {"status": "member"}

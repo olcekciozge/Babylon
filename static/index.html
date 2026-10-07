@@ -73,8 +73,8 @@
     .req { background: var(--bg-deep); border-radius: 6px; padding: 8px; margin-bottom: 6px; display: flex; flex-direction: column; gap: 8px; }
     .req .top { display: flex; gap: 8px; align-items: center; font-size: 13px; min-width: 0; }
     .req .top strong { color: var(--text-strong); }
-    .side-head { justify-content: space-between; }
-    .plus { font-size: 22px; line-height: 1; padding: 2px 10px; }
+    .split { display: flex; justify-content: space-between; align-items: center; padding-right: 4px; }
+    .side-label .plus { font-size: 20px; line-height: 1; padding: 2px 8px; }
     dialog { background: var(--bg-main); color: var(--text); border: 0; border-radius: 8px; padding: 24px; width: min(400px, calc(100vw - 32px)); box-shadow: 0 8px 24px rgba(0, 0, 0, .5); }
     dialog::backdrop { background: rgba(0, 0, 0, .6); }
     dialog h2 { font-size: 18px; color: var(--text-strong); }
@@ -147,10 +147,7 @@
   <!-- Chat screen -->
   <div id="chat-screen" class="app hidden">
     <aside id="sidebar">
-      <div class="side-head">
-        <span>Babylon</span>
-        <button id="new-room-button" class="icon-btn plus" type="button" title="Create a room" aria-label="Create a room">+</button>
-      </div>
+      <div class="side-head">Babylon</div>
       <div class="side-scroll">
         <div class="side-label">Find a room</div>
         <div class="pad"><input id="search-input" maxlength="30" autocomplete="off" placeholder="Search rooms by name" /></div>
@@ -161,18 +158,24 @@
           <ul id="requests"></ul>
         </div>
 
-        <div class="side-label">Your rooms</div>
+        <div class="side-label split">
+          <span>Your rooms</span>
+          <button id="new-room-button" class="icon-btn plus" type="button" title="Create a room" aria-label="Create a room">+</button>
+        </div>
         <ul id="my-rooms"></ul>
         <p id="no-rooms" class="hint hidden">You are not in any room yet. Search for one above or create your own with the + button.</p>
 
-        <div class="side-label">Friends</div>
-        <form id="friend-form" class="row pad">
-          <input id="friend-input" maxlength="20" autocomplete="off" placeholder="Add a friend by username" />
-          <button class="btn small" type="submit">Add</button>
-        </form>
+        <div class="side-label">Direct messages</div>
+        <ul id="dm-list"></ul>
+        <p id="no-dms" class="hint">Click a friend below to start a private chat.</p>
+
+        <div class="side-label split">
+          <span>Friends</span>
+          <button id="new-friend-button" class="icon-btn plus" type="button" title="Add a friend" aria-label="Add a friend">+</button>
+        </div>
         <ul id="friend-requests"></ul>
         <ul id="friends"></ul>
-        <p id="no-friends" class="hint">No friends yet. Add someone by their username.</p>
+        <p id="no-friends" class="hint">No friends yet. Use the + button to add someone.</p>
 
         <p id="side-error" class="error"></p>
       </div>
@@ -252,6 +255,7 @@
     let requests = [];     // pending join requests for rooms I own
     let currentRoom = null;
     let friendData = { friends: [], incoming: [], outgoing: [] };
+    let dms = [];          // private chats, shaped like rooms so they reuse the room code
     let lastAuthor = null; // groups consecutive messages from the same person
     let searchTimer = null;
 
@@ -394,6 +398,8 @@
       requests = [];
       friendData = { friends: [], incoming: [], outgoing: [] };
       renderFriends();
+      dms = [];
+      renderDms();
       $("search-input").value = "";
       $("search-results").innerHTML = "";
       show("auth");
@@ -432,8 +438,11 @@
         await loadRooms();
         await loadRequests();
         await loadFriends();
-        // The current room disappeared (deleted, or I was removed): move to another one
-        if (currentRoom && !rooms.some((r) => r.id === currentRoom.id)) selectRoom(rooms[0] || null);
+        await loadDms();
+        // The open chat disappeared (room deleted, removed, or unfriended): move to another one
+        if (currentRoom && !rooms.some((r) => r.id === currentRoom.id) && !dms.some((d) => d.id === currentRoom.id)) {
+          selectRoom(rooms[0] || dms[0] || null);
+        }
         if ($("search-input").value.trim()) await runSearch();
       } catch { /* ignore temporary network errors */ }
     }
@@ -560,10 +569,7 @@
         li.className = "room";
         li.append(
           makeAvatar(person.username, person.avatar_color, "small"),
-          makeButton(person.username, "name", () => {
-            sidebar.classList.remove("open");
-            showUserCard(person.username);
-          }),
+          makeButton(person.username, "name", () => openDm(person)),
           makeButton("Remove", "btn secondary small", () => {
             if (confirm(`Remove ${person.username} from your friends?`)) removeFriend(person);
           }),
@@ -573,19 +579,42 @@
       $("no-friends").classList.toggle("hidden", friends.length + incoming.length + outgoing.length > 0);
     }
 
-    $("friend-form").addEventListener("submit", async (event) => {
-      event.preventDefault();
+    // ---------- Direct messages ----------
+    // A private chat is a hidden two-person room, so it reuses the room history and WebSocket code
+    async function loadDms() {
+      const data = await api("/api/dms");
+      dms = data.map((d) => ({ id: d.room_id, name: d.user.username, is_owner: false, is_direct: true, user: d.user }));
+      const open = currentRoom && dms.find((d) => d.id === currentRoom.id);
+      if (open) { currentRoom.name = open.name; updateHeader(); }
+      renderDms();
+    }
+
+    function renderDms() {
+      const list = $("dm-list");
+      list.innerHTML = "";
+      for (const dm of dms) {
+        const li = document.createElement("li");
+        li.className = "room" + (currentRoom && currentRoom.id === dm.id ? " active" : "");
+        li.append(
+          makeAvatar(dm.user.username, dm.user.avatar_color, "small"),
+          makeButton(dm.name, "name", () => selectRoom(dm)),
+        );
+        list.appendChild(li);
+      }
+      $("no-dms").classList.toggle("hidden", dms.length > 0);
+    }
+
+    async function openDm(person) {
       $("side-error").textContent = "";
-      const username = $("friend-input").value.trim();
-      if (!username) return;
+      sidebar.classList.remove("open");
       try {
-        await api("/api/friends/request", jsonRequest("POST", { username }));
-        $("friend-input").value = "";
-        await loadFriends();
+        const chat = await api(`/api/dms/${person.id}`, { method: "POST" });
+        await loadDms();
+        selectRoom(dms.find((d) => d.id === chat.room_id));
       } catch (error) {
         $("side-error").textContent = error.message;
       }
-    });
+    }
 
     async function acceptFriend(person) {
       try { await api(`/api/friends/${person.id}/accept`, { method: "POST" }); }
@@ -597,7 +626,7 @@
     async function removeFriend(person) {
       try { await api(`/api/friends/${person.id}`, { method: "DELETE" }); }
       catch (error) { $("side-error").textContent = error.message; }
-      await loadFriends();
+      await refreshSidebar();
     }
 
     // ---------- Room search ----------
@@ -676,12 +705,17 @@
     }
 
     // ---------- Create / rename dialog ----------
-    let dialogRoom = null; // null = creating a room, otherwise the room being renamed
+    let dialogRoom = null; // the room being renamed (only in "rename" mode)
+    let dialogMode = "create"; // "create" | "rename" | "friend"
 
-    function openRoomDialog(room = null) {
+    function openRoomDialog(room = null, mode = room ? "rename" : "create") {
       dialogRoom = room;
-      $("dialog-title").textContent = room ? "Rename room" : "Create a room";
-      $("dialog-submit").textContent = room ? "Save" : "Create";
+      dialogMode = mode;
+      const friend = mode === "friend";
+      $("dialog-title").textContent = { create: "Create a room", rename: "Rename room", friend: "Add a friend" }[mode];
+      $("dialog-submit").textContent = { create: "Create", rename: "Save", friend: "Send request" }[mode];
+      $("room-name-input").placeholder = friend ? "Username" : "Room name";
+      $("room-name-input").maxLength = friend ? 20 : 30;
       $("room-name-input").value = room ? room.name : "";
       $("dialog-error").textContent = "";
       sidebar.classList.remove("open");
@@ -690,6 +724,7 @@
     }
 
     $("new-room-button").addEventListener("click", () => openRoomDialog());
+    $("new-friend-button").addEventListener("click", () => openRoomDialog(null, "friend"));
     $("rename-button").addEventListener("click", () => { if (currentRoom) openRoomDialog(currentRoom); });
     $("dialog-cancel").addEventListener("click", () => $("room-dialog").close());
 
@@ -698,7 +733,11 @@
       $("dialog-error").textContent = "";
       const name = $("room-name-input").value.trim();
       try {
-        if (dialogRoom) {
+        if (dialogMode === "friend") {
+          await api("/api/friends/request", jsonRequest("POST", { username: name }));
+          $("room-dialog").close();
+          await loadFriends();
+        } else if (dialogRoom) {
           await api(`/api/rooms/${dialogRoom.id}`, jsonRequest("PUT", { name }));
           $("room-dialog").close();
           await loadRooms(); // also refreshes the header
@@ -722,6 +761,7 @@
       $("profile-card").classList.add("hidden");
       sidebar.classList.remove("open");
       renderRooms();
+      renderDms();
 
       $("empty-main").classList.toggle("hidden", !!room);
       $("room-view").classList.toggle("hidden", !room);
@@ -741,7 +781,7 @@
           const empty = document.createElement("li");
           empty.className = "empty";
           empty.id = "empty-note";
-          empty.textContent = `This is the start of ${room.name}. Say hello!`;
+          empty.textContent = room.is_direct ? `This is the start of your conversation with ${room.name}.` : `This is the start of ${room.name}. Say hello!`;
           messages.appendChild(empty);
         }
       } catch (error) {
@@ -759,8 +799,9 @@
       await loadRooms();
       loadRequests().catch(() => {});
       loadFriends().catch(() => {});
+      await loadDms().catch(() => {});
       const saved = Number(sessionStorage.getItem("room"));
-      selectRoom(rooms.find((r) => r.id === saved) || rooms[0] || null);
+      selectRoom(rooms.find((r) => r.id === saved) || dms.find((d) => d.id === saved) || rooms[0] || dms[0] || null);
     }
 
     function closeSocket() {
@@ -786,6 +827,10 @@
         ws = null;
         if (event.code === 4004) { // the server closes with 4004 when the owner deletes the room
           alert("This room was deleted by its owner.");
+          return refreshSidebar();
+        }
+        if (event.code === 4003) { // the server closes with 4003 when a private chat is no longer allowed
+          alert("You can't message this person anymore.");
           return refreshSidebar();
         }
         if (!(await fetchMyProfile())) logout();

@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, String
+from sqlalchemy import Boolean, DateTime, ForeignKey, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -78,3 +78,15 @@ class Friendship(Base):
     addressee_id: Mapped[int] = mapped_column(ForeignKey("users.id"), primary_key=True)
     status: Mapped[str] = mapped_column(String(10), default="pending")  # pending | accepted
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+class DirectChat(Base):
+    """Marks a room as a private chat between exactly two users (user_a_id < user_b_id)."""
+
+    __tablename__ = "direct_chats"
+
+    room_id: Mapped[int] = mapped_column(ForeignKey("rooms.id"), primary_key=True)
+    user_a_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    user_b_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+
+    # One private chat per pair of users
+    __table_args__ = (UniqueConstraint("user_a_id", "user_b_id"),)
