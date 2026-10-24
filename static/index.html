@@ -10,7 +10,7 @@
   <style>
     :root {
       --bg-deep: #1e1f22; --bg-side: #2b2d31; --bg-main: #313338; --bg-input: #383a40; --bg-hover: #35373c;
-      --accent: #5865f2; --accent-hover: #4752c4; --text: #dbdee1; --text-strong: #f2f3f5;
+      --accent: #fbbf24; --accent-hover: #f59e0b; --on-accent: #1e1f22; --text: #dbdee1; --text-strong: #f2f3f5;
       --muted: #949ba4; --danger: #f23f43; --success: #23a55a;
       --font: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
     }
@@ -27,11 +27,11 @@
     input:focus, textarea:focus { outline: none; border-color: var(--accent); }
     input::placeholder, textarea::placeholder { color: var(--muted); }
     textarea { resize: vertical; }
-    .btn { background: var(--accent); color: #fff; border: 0; border-radius: 4px; padding: 10px 16px; font-weight: 600; cursor: pointer; transition: background .15s; }
+    .btn { background: var(--accent); color: var(--on-accent); border: 0; border-radius: 4px; padding: 10px 16px; font-weight: 600; cursor: pointer; transition: background .15s; }
     .btn:hover { background: var(--accent-hover); }
     .btn.secondary { background: var(--bg-input); color: var(--text); }
     .btn.secondary:hover { background: #4e5058; }
-    .btn.danger { background: var(--danger); }
+    .btn.danger { background: var(--danger); color: #fff; }
     .btn.danger:hover { background: #c93a3d; }
     .btn.small { padding: 4px 10px; font-size: 13px; white-space: nowrap; }
     .icon-btn { background: none; border: 0; color: var(--muted); cursor: pointer; padding: 6px 8px; border-radius: 4px; }
@@ -78,7 +78,7 @@
     .req { background: var(--bg-deep); border-radius: 6px; padding: 8px; margin-bottom: 6px; display: flex; flex-direction: column; gap: 8px; }
     .req .top { display: flex; gap: 8px; align-items: center; font-size: 13px; min-width: 0; }
     .req .top strong { color: var(--text-strong); }
-    .badge.request { background: var(--accent); }
+    .badge.request { background: var(--accent); color: var(--on-accent); }
     .room.has-unread .name { color: var(--text-strong); font-weight: 700; }
     .friend-info { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; }
     .friend-info .name { flex: none; max-width: 100%; padding: 2px 0 0; }
@@ -102,7 +102,7 @@
     .member { display: flex; align-items: center; gap: 10px; padding: 6px 8px; border-radius: 4px; }
     .member:hover { background: var(--bg-hover); }
     .member .who { flex: 1; min-width: 0; font-weight: 600; color: var(--text-strong); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .tag { font-size: 11px; font-weight: 600; background: var(--accent); color: #fff; border-radius: 4px; padding: 1px 6px; margin-left: 8px; }
+    .tag { font-size: 11px; font-weight: 600; background: var(--accent); color: var(--on-accent); border-radius: 4px; padding: 1px 6px; margin-left: 8px; }
 
     /* Profile settings page */
     .settings { min-height: 100%; background: var(--bg-deep); padding: 24px 16px 56px; overflow-y: auto; }
@@ -469,11 +469,19 @@
       return { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) };
     }
 
+    // Light colors (like yellow) need dark letters to stay readable
+    function readableTextOn(hex) {
+      const n = parseInt(hex.slice(1), 16);
+      const brightness = (0.299 * ((n >> 16) & 255) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) / 255;
+      return brightness > 0.62 ? "#1e1f22" : "#fff";
+    }
+
     function makeAvatar(username, color, size = "") {
       const el = document.createElement("span");
       el.className = "avatar " + size;
       el.style.background = color;
       el.textContent = username[0].toUpperCase();
+      el.style.color = readableTextOn(color);
       return el;
     }
 
