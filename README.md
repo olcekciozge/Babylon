@@ -21,9 +21,9 @@ A real-time chat app with private rooms, friends, direct messages and presence. 
 - **Profiles**: bio and avatar color.
 - **Responsive UI**: a Discord-style dark theme with a yellow accent that also works on phones.
 
-| Room details | Profile settings |
-| --- | --- |
-| ![Room details](docs/screenshots/about.png) | ![Profile](docs/screenshots/profile.png) |
+| Login | Room details | Profile settings |
+| --- | --- | --- |
+| ![Login](docs/screenshots/login.png) | ![Room details](docs/screenshots/about.png) | ![Profile](docs/screenshots/profile.png) |
 
 ## Tech stack
 
@@ -47,7 +47,7 @@ pip install -r requirements.txt
 uvicorn app.main:app --reload
 ```
 
-Open <http://localhost:8000>, create two accounts in two different browsers (or one normal and one private window) and try it out.
+Open <http://localhost:8000>, create a few accounts and try it out. To be logged in as several people at once, use different browsers or private windows.
 
 ### With Docker
 
