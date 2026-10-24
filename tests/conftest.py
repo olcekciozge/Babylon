@@ -1,11 +1,12 @@
 import os
+import shutil
 import tempfile
 from dataclasses import dataclass
 
 # The database location has to be set BEFORE the app is imported,
 # because app/database.py reads it when it is first imported.
-_tmp = tempfile.TemporaryDirectory()
-os.environ["DATABASE_URL"] = f"sqlite:///{_tmp.name}/test.db"
+_tmp_dir = tempfile.mkdtemp()
+os.environ["DATABASE_URL"] = f"sqlite:///{_tmp_dir}/test.db"
 
 import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
@@ -26,6 +27,12 @@ class Account:
     def headers(self) -> dict:
         return {"Authorization": f"Bearer {self.token}"}
 
+@pytest.fixture(scope="session", autouse=True)
+def remove_temp_database():
+    """Windows can't delete a database file that is still open, so close it first."""
+    yield
+    engine.dispose()
+    shutil.rmtree(_tmp_dir, ignore_errors=True)
 
 @pytest.fixture(autouse=True)
 def clean_state():
