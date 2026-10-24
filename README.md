@@ -8,7 +8,7 @@ A real-time chat app with private rooms, friends, direct messages and presence. 
 
 > The demo runs on a free hosting plan: the first load can take up to a minute while the server wakes up, and data is wiped from time to time. Feel free to register and try it with a friend.
 
-<img src="docs/screenshots/chat.png" alt="Babylon chat" width="100%">
+<img src="docs/screenshots/chat.png" alt="Babylon chat" width="720">
 
 ## Features
 
@@ -25,17 +25,17 @@ A real-time chat app with private rooms, friends, direct messages and presence. 
 
 ### Sign in
 
-<img src="docs/screenshots/login.png" alt="Login page" width="100%">
+<img src="docs/screenshots/login.png" alt="Login page" width="720">
 
 ### Room details
 
 Owners can edit the room description. Everyone in the room sees the member list with online status.
 
-<img src="docs/screenshots/about.png" alt="Room details dialog" width="100%">
+<img src="docs/screenshots/about.png" alt="Room details dialog" width="720">
 
 ### Profile settings
 
-<img src="docs/screenshots/profile.png" alt="Profile settings" width="100%">
+<img src="docs/screenshots/profile.png" alt="Profile settings" width="720">
 
 ## Tech stack
 
