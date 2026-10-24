@@ -4,7 +4,7 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse
 
 from app import auth, dms, friends, models, rooms, unread, users  # noqa: F401  (models registers the tables)
-from app.database import Base, SessionLocal, engine
+from app.database import Base, SessionLocal, add_missing_columns, engine
 from app.dms import are_friends
 from app.manager import manager
 from app.models import DirectChat, Message
@@ -14,6 +14,7 @@ from app.rooms import is_member, iso
 app = FastAPI()
 
 Base.metadata.create_all(bind=engine)  # creates missing tables
+add_missing_columns()  # adds new columns to tables that already exist
 app.include_router(auth.router)
 app.include_router(users.router)
 app.include_router(rooms.router)
@@ -73,8 +74,6 @@ async def chat(websocket: WebSocket, room_id: int, token: str = ""):
     username = info["username"]
     is_dm = info["peer_id"] is not None
     await manager.connect(room_id, websocket, username)
-    if not is_dm:
-        await manager.broadcast(room_id, {"type": "system", "text": f"{username} joined the chat"})
     try:
         while True:
             # Clients send JSON: {"type": "message", "text": "..."} or {"type": "typing"}
@@ -122,5 +121,3 @@ async def chat(websocket: WebSocket, room_id: int, token: str = ""):
                 await presence.notify_message(room_id, info["id"])
     except WebSocketDisconnect:
         manager.disconnect(room_id, websocket)
-        if not is_dm:
-            await manager.broadcast(room_id, {"type": "system", "text": f"{username} left the chat"})

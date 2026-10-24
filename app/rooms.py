@@ -10,12 +10,18 @@ from app.auth import get_current_user
 from app.database import get_db
 from app.manager import manager
 from app.models import DirectChat, JoinRequest, Message, ReadState, Room, RoomMember, User
+from app.presence import presence
+
 router = APIRouter(prefix="/api/rooms", tags=["rooms"])
 
 
 class RoomCreate(BaseModel):
     # 3-30 characters: letters, digits, spaces, hyphen, underscore
     name: str = Field(pattern=r"^[A-Za-z0-9][A-Za-z0-9_\- ]{2,29}$")
+
+
+class DescriptionUpdate(BaseModel):
+    description: str = Field(max_length=200)
 
 
 # ---------- Helpers ----------
@@ -50,6 +56,29 @@ def member_counts(db: Session) -> dict[int, int]:
     )
 
 
+def is_shown_online(viewer_id: int, user_id: int, show_online: bool) -> bool:
+    """The viewer always counts as online (they are using the app right now).
+    Everyone else counts only if connected AND they allow others to see it."""
+    return user_id == viewer_id or presence.visible_online(user_id, show_online)
+
+
+def online_counts(db: Session, room_ids: list[int], viewer_id: int) -> dict[int, int]:
+    """How many members of each room are online."""
+    if not room_ids:
+        return {}
+    rows = db.execute(
+        select(RoomMember.room_id, User.id, User.show_online)
+        .select_from(RoomMember)
+        .join(User, User.id == RoomMember.user_id)
+        .where(RoomMember.room_id.in_(room_ids))
+    ).all()
+    counts: dict[int, int] = {}
+    for room_id, user_id, show_online in rows:
+        if is_shown_online(viewer_id, user_id, show_online):
+            counts[room_id] = counts.get(room_id, 0) + 1
+    return counts
+
+
 # ---------- Listing and searching ----------
 @router.get("")
 def list_my_rooms(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
@@ -65,6 +94,7 @@ def list_my_rooms(user: User = Depends(get_current_user), db: Session = Depends(
         .where(Room.id.not_in(select(DirectChat.room_id)))
         .order_by(Room.name_lower)
     ).all()
+    online = online_counts(db, [r.id for r in rooms], user.id)
     result = []
     for r in rooms:
         owner = r.owner_id == user.id
@@ -72,6 +102,7 @@ def list_my_rooms(user: User = Depends(get_current_user), db: Session = Depends(
             "id": r.id,
             "name": r.name,
             "member_count": counts.get(r.id, 0),
+            "online_count": online.get(r.id, 0),
             "is_member": True,
             "is_owner": owner,
             # Only owners see how many requests are waiting
@@ -132,7 +163,7 @@ def create_room(
     except IntegrityError:
         db.rollback()
         raise HTTPException(status_code=409, detail="Room name is already taken")
-    return {"id": room.id, "name": room.name, "member_count": 1,
+    return {"id": room.id, "name": room.name, "member_count": 1, "online_count": 1,
             "is_member": True, "is_owner": True, "pending_count": 0}
 
 
@@ -197,6 +228,57 @@ def rename_room(
         db.rollback()
         raise HTTPException(status_code=409, detail="Room name is already taken")
     return {"id": room.id, "name": room.name}
+
+
+# ---------- About: description and members ----------
+@router.get("/{room_id}/info")
+def room_info(
+    room_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)
+):
+    """Details of a room, only for its members."""
+    if not is_member(db, user.id, room_id):
+        raise HTTPException(status_code=403, detail="Join the room to see its details")
+    if is_direct(db, room_id):
+        raise HTTPException(status_code=400, detail="Private chats have no room details")
+    room = db.get(Room, room_id)
+
+    users = db.scalars(
+        select(User).join(RoomMember, RoomMember.user_id == User.id).where(RoomMember.room_id == room_id)
+    ).all()
+    members = [
+        {
+            "id": u.id,
+            "username": u.username,
+            "avatar_color": u.avatar_color,
+            "online": is_shown_online(user.id, u.id, u.show_online),
+            "is_owner": u.id == room.owner_id,
+        }
+        for u in users
+    ]
+    # Owner first, then online people, then A-Z
+    members.sort(key=lambda m: (not m["is_owner"], not m["online"], m["username"].lower()))
+    return {
+        "id": room.id,
+        "name": room.name,
+        "description": room.description,
+        "is_owner": room.owner_id == user.id,
+        "created_at": iso(room.created_at),
+        "online_count": sum(1 for m in members if m["online"]),
+        "members": members,
+    }
+
+
+@router.put("/{room_id}/description")
+def set_description(
+    room_id: int,
+    data: DescriptionUpdate,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    room = get_owned_room(db, room_id, user)
+    room.description = data.description.strip()
+    db.commit()
+    return {"description": room.description}
 
 
 # ---------- Join requests ----------

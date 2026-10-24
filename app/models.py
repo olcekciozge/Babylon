@@ -34,6 +34,8 @@ class Room(Base):
     name_lower: Mapped[str] = mapped_column(String(30), unique=True, index=True)
     # Every room has an owner, who approves join requests and can delete the room
     owner_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    # Short text the owner writes to explain what the room is for
+    description: Mapped[str] = mapped_column(String(200), default="", server_default="")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
 
 

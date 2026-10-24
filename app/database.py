@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
 DATABASE_URL = "sqlite:///./babylon.db"
@@ -19,3 +19,15 @@ def get_db():
         yield db
     finally:
         db.close()
+
+
+def add_missing_columns():
+    """A tiny stand-in for a migration tool.
+
+    create_all() creates missing tables but never adds columns to tables that already exist,
+    so new columns are added here. Real projects use a tool like Alembic for this.
+    """
+    with engine.begin() as conn:
+        room_columns = {c["name"] for c in inspect(conn).get_columns("rooms")}
+        if "description" not in room_columns:
+            conn.execute(text("ALTER TABLE rooms ADD COLUMN description VARCHAR(200) NOT NULL DEFAULT ''"))

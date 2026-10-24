@@ -84,6 +84,59 @@
     .friend-info .name { flex: none; max-width: 100%; padding: 2px 0 0; }
     .friend-status { font-size: 12px; color: var(--muted); line-height: 1.2; padding-bottom: 2px; }
     .friend-status.online { color: var(--success); }
+    .avatar.xl { width: 80px; height: 80px; font-size: 34px; }
+    .room-meta { color: var(--muted); font-size: 13px; }
+    #about-button { margin-left: auto; }
+    .row.between { justify-content: space-between; align-items: center; }
+
+    /* Room details dialog */
+    dialog { max-height: 88vh; overflow-y: auto; }
+    dialog.wide { width: min(480px, calc(100vw - 32px)); padding: 0; }
+    .dialog-body { padding: 24px; display: flex; flex-direction: column; gap: 20px; }
+    dialog .status { border-color: var(--bg-main); }
+    .about-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+    dialog h3 { font-size: 13px; font-weight: 600; color: var(--muted); margin: 0 0 8px; }
+    .about-text { white-space: pre-wrap; overflow-wrap: anywhere; }
+    .about-text.empty { color: var(--muted); }
+    .members { display: flex; flex-direction: column; gap: 2px; max-height: 260px; overflow-y: auto; }
+    .member { display: flex; align-items: center; gap: 10px; padding: 6px 8px; border-radius: 4px; }
+    .member:hover { background: var(--bg-hover); }
+    .member .who { flex: 1; min-width: 0; font-weight: 600; color: var(--text-strong); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .tag { font-size: 11px; font-weight: 600; background: var(--accent); color: #fff; border-radius: 4px; padding: 1px 6px; margin-left: 8px; }
+
+    /* Profile settings page */
+    .settings { min-height: 100%; background: var(--bg-deep); padding: 24px 16px 56px; overflow-y: auto; }
+    .settings-inner { max-width: 640px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
+    .settings-top { display: flex; align-items: center; gap: 16px; }
+    .settings-top h1 { font-size: 22px; color: var(--text-strong); }
+    .settings-card { background: var(--bg-main); border-radius: 8px; padding: 20px 24px; }
+    .settings-card h2 { font-size: 17px; color: var(--text-strong); }
+    .card-lead { color: var(--muted); font-size: 14px; margin: 2px 0 16px; }
+    .card-actions { display: flex; align-items: center; gap: 12px; }
+    .card-actions .btn { margin-left: auto; }
+    .counter { align-self: flex-end; font-size: 12px; color: var(--muted); font-weight: 500; }
+    .preview { background: var(--bg-main); border-radius: 8px; overflow: hidden; }
+    .preview-banner { height: 84px; }
+    .preview-body { display: flex; align-items: flex-end; gap: 16px; padding: 0 24px; margin-top: -44px; }
+    .preview-body .avatar { width: 92px; height: 92px; font-size: 38px; border: 6px solid var(--bg-main); }
+    .preview-body > div { padding-bottom: 8px; min-width: 0; }
+    .preview-body strong { font-size: 20px; color: var(--text-strong); }
+    .preview-body p { color: var(--muted); font-size: 13px; }
+    #preview-bio { padding: 12px 24px 20px; white-space: pre-wrap; overflow-wrap: anywhere; }
+    .field-label { font-size: 13px; font-weight: 600; color: var(--muted); }
+    .swatches { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 8px; }
+    .swatch { width: 32px; height: 32px; border-radius: 50%; border: 3px solid transparent; cursor: pointer; padding: 0; }
+    .swatch.selected { border-color: var(--text-strong); }
+    .switch-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+    .switch-row strong { color: var(--text-strong); }
+    .switch-row p { color: var(--muted); font-size: 14px; margin-top: 2px; }
+    .switch { position: relative; display: inline-block; width: 44px; height: 24px; flex-shrink: 0; }
+    .switch input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; padding: 0; opacity: 0; cursor: pointer; z-index: 1; }
+    .slider { position: absolute; inset: 0; background: #80848e; border-radius: 12px; transition: background .15s; }
+    .slider::before { content: ""; position: absolute; width: 18px; height: 18px; left: 3px; top: 3px; background: #fff; border-radius: 50%; transition: transform .15s; }
+    .switch input:checked + .slider { background: var(--success); }
+    .switch input:checked + .slider::before { transform: translateX(20px); }
+    .switch input:focus-visible + .slider { outline: 2px solid var(--accent); outline-offset: 2px; }
     .split { display: flex; justify-content: space-between; align-items: center; padding-right: 4px; }
     .side-label .plus { font-size: 20px; line-height: 1; padding: 2px 8px; }
     dialog { background: var(--bg-main); color: var(--text); border: 0; border-radius: 8px; padding: 24px; width: min(400px, calc(100vw - 32px)); box-shadow: 0 8px 24px rgba(0, 0, 0, .5); }
@@ -198,7 +251,9 @@
       <header class="room-head">
         <button id="menu-button" class="icon-btn" type="button" aria-label="Show rooms">&#9776;</button>
         <h2 id="room-title"></h2>
+        <span id="room-meta" class="room-meta"></span>
         <button id="rename-button" class="icon-btn hidden" type="button" title="Rename this room">Rename</button>
+        <button id="about-button" class="icon-btn hidden" type="button" title="Description and members">About</button>
       </header>
       <div id="empty-main" class="hidden">
         <h2>No room selected</h2>
@@ -216,31 +271,80 @@
   </div>
 
   <!-- Profile screen -->
-  <div id="profile-screen" class="center hidden">
-    <div class="panel">
-      <button id="back-button" class="btn secondary small" type="button">&larr; Back to chat</button>
+  <div id="profile-screen" class="settings hidden">
+    <div class="settings-inner">
+      <div class="settings-top">
+        <button id="back-button" class="btn secondary small" type="button">&larr; Back to chat</button>
+        <h1>Profile settings</h1>
+      </div>
 
-      <h2>Your profile</h2>
-      <form id="profile-form" class="stack">
-        <label>Bio
-          <textarea id="bio-input" maxlength="160" rows="3" placeholder="Tell people about yourself (max 160 characters)"></textarea>
-        </label>
-        <label>Avatar color <input id="color-input" type="color" /></label>
-        <button class="btn" type="submit">Save profile</button>
-      </form>
-      <p id="profile-message"></p>
+      <!-- Live preview of how other people see you -->
+      <section class="preview" aria-label="Profile preview">
+        <div id="preview-banner" class="preview-banner"></div>
+        <div class="preview-body">
+          <span id="preview-avatar"></span>
+          <div>
+            <strong id="preview-name"></strong>
+            <p id="preview-since"></p>
+          </div>
+        </div>
+        <p id="preview-bio"></p>
+      </section>
 
-      <h2>Privacy</h2>
-      <label class="check"><input id="online-input" type="checkbox" /> Show my friends when I'm online</label>
-      <p id="privacy-message"></p>
+      <section class="settings-card">
+        <h2>About you</h2>
+        <p class="card-lead">This is what people see when they click your name.</p>
+        <form id="profile-form" class="stack">
+          <label>Bio
+            <textarea id="bio-input" maxlength="160" rows="3" placeholder="Tell people a little about yourself"></textarea>
+            <span id="bio-counter" class="counter">0/160</span>
+          </label>
+          <div>
+            <span class="field-label">Avatar color</span>
+            <div class="swatches">
+              <span id="swatches" class="swatches" style="margin: 0"></span>
+              <input id="color-input" type="color" title="Pick any color" aria-label="Custom avatar color" />
+            </div>
+          </div>
+          <div class="card-actions">
+            <span id="profile-message"></span>
+            <button class="btn" type="submit">Save changes</button>
+          </div>
+        </form>
+      </section>
 
-      <h2>Change username</h2>
-      <form id="username-form" class="stack">
-        <input id="new-username-input" placeholder="New username" autocomplete="off" />
-        <input id="username-password-input" type="password" placeholder="Current password" autocomplete="current-password" />
-        <button class="btn" type="submit">Change username</button>
-      </form>
-      <p id="username-message"></p>
+      <section class="settings-card">
+        <h2>Privacy</h2>
+        <p class="card-lead">Choose who can see that you are online.</p>
+        <div class="switch-row">
+          <div>
+            <strong>Show when I'm online</strong>
+            <p>Your friends and room members see a green dot next to your name. Turn this off to appear offline to everyone.</p>
+          </div>
+          <label class="switch">
+            <input id="online-input" type="checkbox" aria-label="Show when I'm online" />
+            <span class="slider"></span>
+          </label>
+        </div>
+        <p id="privacy-message"></p>
+      </section>
+
+      <section class="settings-card">
+        <h2>Account</h2>
+        <p class="card-lead">Changing your username needs your current password.</p>
+        <form id="username-form" class="stack">
+          <label>New username
+            <input id="new-username-input" placeholder="3-20 letters, digits or _" autocomplete="off" />
+          </label>
+          <label>Current password
+            <input id="username-password-input" type="password" autocomplete="current-password" />
+          </label>
+          <div class="card-actions">
+            <span id="username-message"></span>
+            <button class="btn" type="submit">Change username</button>
+          </div>
+        </form>
+      </section>
     </div>
   </div>
 
@@ -254,6 +358,33 @@
         <button id="dialog-submit" class="btn" type="submit"></button>
       </div>
     </form>
+  </dialog>
+
+  <dialog id="about-dialog" class="wide">
+    <div class="dialog-body">
+      <div class="about-head">
+        <h2 id="about-title"></h2>
+        <button id="about-close" class="icon-btn" type="button" aria-label="Close">&times;</button>
+      </div>
+
+      <section>
+        <h3>About this room</h3>
+        <p id="about-description" class="about-text"></p>
+        <form id="about-form" class="stack hidden">
+          <textarea id="about-input" maxlength="200" rows="3" placeholder="Describe what this room is for"></textarea>
+          <div class="row between">
+            <span id="about-counter" class="counter" style="align-self: auto">0/200</span>
+            <button class="btn small" type="submit">Save description</button>
+          </div>
+        </form>
+        <p id="about-message"></p>
+      </section>
+
+      <section>
+        <h3 id="members-title">Members</h3>
+        <ul id="members" class="members"></ul>
+      </section>
+    </div>
   </dialog>
 
   <script>
@@ -471,6 +602,9 @@
       $("room-title").textContent = currentRoom.name;
       $("message-input").placeholder = `Message ${currentRoom.name}`;
       $("rename-button").classList.toggle("hidden", !currentRoom.is_owner);
+      $("about-button").classList.toggle("hidden", !!currentRoom.is_direct);
+      $("room-meta").textContent = currentRoom.is_direct
+        ? "" : `${currentRoom.online_count || 0}/${currentRoom.member_count || 0} online`;
     }
 
     async function loadRooms() {
@@ -480,6 +614,8 @@
       if (fresh) {
         currentRoom.name = fresh.name;
         currentRoom.is_owner = fresh.is_owner;
+        currentRoom.member_count = fresh.member_count;
+        currentRoom.online_count = fresh.online_count;
         updateHeader();
       }
       renderRooms();
@@ -515,7 +651,16 @@
       for (const room of rooms) {
         const li = document.createElement("li");
         li.className = "room" + (currentRoom && currentRoom.id === room.id ? " active" : "") + (unread[room.id] ? " has-unread" : "");
-        li.appendChild(makeButton(room.name, "name", () => selectRoom(room)));
+        // Name on top, "2/5 online" underneath. The whole row opens the room.
+        const sub = document.createElement("span");
+        sub.className = "friend-status" + (room.online_count > 0 ? " online" : "");
+        sub.textContent = `${room.online_count}/${room.member_count} online`;
+        const info = document.createElement("div");
+        info.className = "friend-info";
+        info.append(makeButton(room.name, "name", () => selectRoom(room)), sub);
+        li.appendChild(info);
+        li.style.cursor = "pointer";
+        li.addEventListener("click", (event) => { if (!event.target.closest("button")) selectRoom(room); });
 
         if (unread[room.id]) li.appendChild(unreadBadge(unread[room.id]));
         if (room.pending_count > 0) {
@@ -525,11 +670,6 @@
           badge.textContent = room.pending_count;
           li.appendChild(badge);
         }
-        const count = document.createElement("span");
-        count.className = "count";
-        count.textContent = room.member_count;
-        li.appendChild(count);
-
         // Owners delete the room, everyone else can leave it
         li.appendChild(room.is_owner
           ? makeButton("Delete", "btn danger small", () => deleteRoom(room))
@@ -888,6 +1028,8 @@
       if (!room) {
         $("room-title").textContent = "";
         $("rename-button").classList.add("hidden");
+        $("about-button").classList.add("hidden");
+        $("room-meta").textContent = "";
         return;
       }
       sessionStorage.setItem("room", room.id);
@@ -1039,20 +1181,121 @@
     }
     $("profile-card").addEventListener("click", () => $("profile-card").classList.add("hidden"));
 
+    // ---------- Room details (About) ----------
+    async function openAbout() {
+      if (!currentRoom || currentRoom.is_direct) return;
+      try {
+        const info = await api(`/api/rooms/${currentRoom.id}/info`);
+        $("about-title").textContent = info.name;
+
+        // The owner edits the description, everyone else just reads it
+        const text = $("about-description");
+        text.textContent = info.description || "No description yet.";
+        text.classList.toggle("empty", !info.description);
+        text.classList.toggle("hidden", info.is_owner);
+        $("about-form").classList.toggle("hidden", !info.is_owner);
+        $("about-input").value = info.description;
+        $("about-counter").textContent = `${info.description.length}/200`;
+        setMessage($("about-message"), "", true);
+
+        $("members-title").textContent = `Members: ${info.online_count} of ${info.members.length} online`;
+        const list = $("members");
+        list.innerHTML = "";
+        for (const m of info.members) {
+          const li = document.createElement("li");
+          li.className = "member";
+          const who = document.createElement("span");
+          who.className = "who";
+          who.textContent = m.username;
+          if (m.is_owner) {
+            const tag = document.createElement("span");
+            tag.className = "tag";
+            tag.textContent = "Owner";
+            who.appendChild(tag);
+          }
+          const status = document.createElement("span");
+          status.className = "friend-status" + (m.online ? " online" : "");
+          status.textContent = m.online ? "Online" : "Offline";
+          li.append(statusAvatar(m), who, status);
+          list.appendChild(li);
+        }
+        $("about-dialog").showModal();
+      } catch (error) {
+        $("side-error").textContent = error.message;
+      }
+    }
+
+    $("about-button").addEventListener("click", openAbout);
+    $("about-close").addEventListener("click", () => $("about-dialog").close());
+    // Clicking the dark area around the dialog closes it
+    $("about-dialog").addEventListener("click", (event) => {
+      if (event.target === $("about-dialog")) $("about-dialog").close();
+    });
+    $("about-input").addEventListener("input", () => {
+      $("about-counter").textContent = `${$("about-input").value.length}/200`;
+    });
+    $("about-form").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      try {
+        await api(`/api/rooms/${currentRoom.id}/description`,
+          jsonRequest("PUT", { description: $("about-input").value }));
+        setMessage($("about-message"), "Description saved.", true);
+      } catch (error) {
+        setMessage($("about-message"), error.message, false);
+      }
+    });
+
     // ---------- Profile screen ----------
+    const SWATCHES = ["#3b82f6", "#6366f1", "#a855f7", "#ec4899", "#ef4444",
+                      "#f97316", "#eab308", "#22c55e", "#14b8a6", "#06b6d4"];
+    let profileName = "";
+    let profileSince = "";
+
+    // Redraws the preview card at the top of the page
+    function updateProfilePreview() {
+      const color = $("color-input").value;
+      const bio = $("bio-input").value;
+      $("preview-banner").style.background = `linear-gradient(135deg, ${color}, ${color}55)`;
+      $("preview-avatar").replaceChildren(makeAvatar(profileName || "?", color, "xl"));
+      $("preview-name").textContent = profileName;
+      $("preview-since").textContent = profileSince ? "Member since " + new Date(profileSince).toLocaleDateString() : "";
+      $("preview-bio").textContent = bio.trim() || "No bio yet.";
+      $("bio-counter").textContent = `${bio.length}/160`;
+      document.querySelectorAll("#swatches .swatch").forEach((b) =>
+        b.classList.toggle("selected", b.dataset.color === color.toLowerCase()));
+    }
+
+    for (const color of SWATCHES) {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "swatch";
+      b.dataset.color = color;
+      b.style.background = color;
+      b.title = color;
+      b.setAttribute("aria-label", `Use color ${color}`);
+      b.addEventListener("click", () => { $("color-input").value = color; updateProfilePreview(); });
+      $("swatches").appendChild(b);
+    }
+    $("color-input").addEventListener("input", updateProfilePreview);
+    $("bio-input").addEventListener("input", updateProfilePreview);
+
     $("profile-button").addEventListener("click", async () => {
       const p = await fetchMyProfile();
       if (!p) return logout();
       closeSocket();
+      profileName = p.username;
+      profileSince = p.created_at;
       $("bio-input").value = p.bio;
       $("color-input").value = p.avatar_color;
       $("online-input").checked = p.show_online;
-      setMessage($("privacy-message"), "", true);
       $("new-username-input").value = "";
       $("username-password-input").value = "";
       setMessage($("profile-message"), "", true);
+      setMessage($("privacy-message"), "", true);
       setMessage($("username-message"), "", true);
+      updateProfilePreview();
       show("profile");
+      window.scrollTo(0, 0);
     });
 
     $("back-button").addEventListener("click", async () => {
@@ -1080,7 +1323,7 @@
           bio: $("bio-input").value,
           avatar_color: $("color-input").value,
         }));
-        setMessage($("profile-message"), "Profile saved.", true);
+        setMessage($("profile-message"), "Changes saved.", true);
       } catch (error) {
         setMessage($("profile-message"), error.message, false);
       }
@@ -1089,11 +1332,14 @@
     $("username-form").addEventListener("submit", async (event) => {
       event.preventDefault();
       try {
-        await api("/api/users/me/username", jsonRequest("PUT", {
+        const updated = await api("/api/users/me/username", jsonRequest("PUT", {
           new_username: $("new-username-input").value.trim(),
           password: $("username-password-input").value,
         }));
+        profileName = updated.username;
+        $("new-username-input").value = "";
         $("username-password-input").value = "";
+        updateProfilePreview();
         setMessage($("username-message"), "Username changed.", true);
       } catch (error) {
         setMessage($("username-message"), error.message, false);
