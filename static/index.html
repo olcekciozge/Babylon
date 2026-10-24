@@ -500,7 +500,7 @@
         await loadUnread();
         // The open chat disappeared (room deleted, removed, or unfriended): move to another one
         if (currentRoom && !rooms.some((r) => r.id === currentRoom.id) && !dms.some((d) => d.id === currentRoom.id)) {
-          selectRoom(rooms[0] || dms[0] || null);
+          selectRoom(rooms[0] || null);
         }
         if ($("search-input").value.trim()) await runSearch();
       } catch { /* ignore temporary network errors */ }
@@ -655,6 +655,9 @@
         info.append(makeButton(person.username, "name", () => openDm(person)), status);
 
         li.append(statusAvatar(person), info);
+        // The whole row opens the chat, not just the name (buttons keep their own action)
+        li.style.cursor = "pointer";
+        li.addEventListener("click", (event) => { if (!event.target.closest("button")) openDm(person); });
         if (count) li.appendChild(unreadBadge(count));
         li.appendChild(makeButton("Remove", "btn secondary small", () => {
           if (confirm(`Remove ${person.username} from your friends?`)) removeFriend(person);
@@ -921,7 +924,7 @@
       await loadUnread().catch(() => {});
       connectPresence();
       const saved = Number(sessionStorage.getItem("room"));
-      selectRoom(rooms.find((r) => r.id === saved) || dms.find((d) => d.id === saved) || rooms[0] || dms[0] || null);
+      selectRoom(rooms.find((r) => r.id === saved) || dms.find((d) => d.id === saved) || rooms[0] || null);
     }
 
     function closeSocket() {
