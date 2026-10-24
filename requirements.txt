@@ -1,5 +1,6 @@
-fastapi[standard]
-uvicorn[standard]
-sqlalchemy
-pyjwt
-pwdlib[argon2]
+fastapi>=0.115
+uvicorn[standard]>=0.30
+sqlalchemy>=2.0
+pyjwt>=2.8
+pwdlib[argon2]>=0.2
+python-multipart>=0.0.9
