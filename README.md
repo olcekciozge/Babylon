@@ -92,21 +92,32 @@ The suite has 42 tests covering authentication, profiles, rooms and join request
 - **Unread counts.** A per-user, per-chat `last_read_id` marker. Counting messages after the marker (excluding your own) keeps the badge consistent across devices and reloads.
 - **Safe rendering.** All user content is inserted with `textContent`, never `innerHTML`.
 
+## Project structure
+
 ```
-app/
-  main.py        app setup, chat and presence WebSockets
-  auth.py        register, login, token handling
-  users.py       profile, username change, privacy
-  rooms.py       rooms, search, join requests, messages
-  friends.py     friend requests
-  dms.py         direct messages
-  unread.py      unread counters
-  manager.py     per-room WebSocket connections
-  presence.py    online status
-  models.py      SQLAlchemy models
-static/index.html    the whole frontend
-tests/               pytest suite
-Dockerfile           container image
+Babylon/
+├── app/
+│   ├── main.py          # app setup, chat and presence WebSockets
+│   ├── auth.py          # register, login, token handling
+│   ├── users.py         # profile, username change, privacy
+│   ├── rooms.py         # rooms, search, join requests, messages
+│   ├── friends.py       # friend requests
+│   ├── dms.py           # direct messages
+│   ├── unread.py        # unread counters
+│   ├── manager.py       # per-room WebSocket connections
+│   ├── presence.py      # online status
+│   ├── models.py        # SQLAlchemy models
+│   └── database.py      # engine, sessions, small startup migration
+├── static/
+│   └── index.html       # the whole frontend
+├── tests/               # pytest suite (auth, rooms, friends, realtime)
+├── docs/
+│   └── screenshots/     # images used in this README
+├── .github/workflows/   # GitHub Actions: runs the tests on every push
+├── Dockerfile           # container image used for deployment
+├── requirements.txt
+├── requirements-dev.txt
+└── README.md
 ```
 
 ## Known limitations
@@ -115,8 +126,3 @@ Dockerfile           container image
 - Schema changes use a small startup helper (`add_missing_columns`). A larger project would use Alembic migrations.
 - The sidebar refreshes by polling every 10 seconds, apart from the instant WebSocket notifications.
 - No message editing, deletion or attachments. Read receipts are left out on purpose: unread badges and typing indicators cover the need without social pressure.
-
-## Roadmap
-
-- Voice and video calls with WebRTC
-- Persistent database for the hosted demo
