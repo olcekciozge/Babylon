@@ -10,7 +10,7 @@
   <style>
     :root {
       --bg-deep: #1e1f22; --bg-side: #2b2d31; --bg-main: #313338; --bg-input: #383a40; --bg-hover: #35373c;
-      --accent: #800c33; --accent-hover: #9f1b47; --text: #dbdee1; --text-strong: #f2f3f5;
+      --accent: #5865f2; --accent-hover: #4752c4; --text: #dbdee1; --text-strong: #f2f3f5;
       --muted: #949ba4; --danger: #f23f43; --success: #23a55a;
       --font: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
     }
@@ -46,6 +46,11 @@
     .avatar { width: 40px; height: 40px; border-radius: 50%; color: #fff; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; font-weight: 600; font-size: 17px; }
     .avatar.small { width: 32px; height: 32px; font-size: 14px; }
     .avatar.big { width: 64px; height: 64px; font-size: 28px; }
+    .avatar-wrap { position: relative; display: inline-flex; flex-shrink: 0; }
+    .status { position: absolute; right: -2px; bottom: -2px; width: 12px; height: 12px; border-radius: 50%; background: #80848e; border: 2px solid var(--bg-side); }
+    .status.online { background: var(--success); }
+    input[type="checkbox"] { width: auto; padding: 0; accent-color: var(--accent); }
+    label.check { flex-direction: row; align-items: center; gap: 8px; font-size: 15px; font-weight: 500; color: var(--text); }
 
     .center { min-height: 100%; display: flex; align-items: center; justify-content: center; padding: 24px; background: var(--bg-deep); overflow-y: auto; }
     .panel { background: var(--bg-main); border-radius: 8px; padding: 32px; width: 100%; max-width: 440px; box-shadow: 0 8px 24px rgba(0, 0, 0, .4); }
@@ -73,6 +78,12 @@
     .req { background: var(--bg-deep); border-radius: 6px; padding: 8px; margin-bottom: 6px; display: flex; flex-direction: column; gap: 8px; }
     .req .top { display: flex; gap: 8px; align-items: center; font-size: 13px; min-width: 0; }
     .req .top strong { color: var(--text-strong); }
+    .badge.request { background: var(--accent); }
+    .room.has-unread .name { color: var(--text-strong); font-weight: 700; }
+    .friend-info { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; }
+    .friend-info .name { flex: none; max-width: 100%; padding: 2px 0 0; }
+    .friend-status { font-size: 12px; color: var(--muted); line-height: 1.2; padding-bottom: 2px; }
+    .friend-status.online { color: var(--success); }
     .split { display: flex; justify-content: space-between; align-items: center; padding-right: 4px; }
     .side-label .plus { font-size: 20px; line-height: 1; padding: 2px 8px; }
     dialog { background: var(--bg-main); color: var(--text); border: 0; border-radius: 8px; padding: 24px; width: min(400px, calc(100vw - 32px)); box-shadow: 0 8px 24px rgba(0, 0, 0, .5); }
@@ -165,12 +176,8 @@
         <ul id="my-rooms"></ul>
         <p id="no-rooms" class="hint hidden">You are not in any room yet. Search for one above or create your own with the + button.</p>
 
-        <div class="side-label">Direct messages</div>
-        <ul id="dm-list"></ul>
-        <p id="no-dms" class="hint">Click a friend below to start a private chat.</p>
-
         <div class="side-label split">
-          <span>Friends</span>
+          <span id="friends-title">Friends</span>
           <button id="new-friend-button" class="icon-btn plus" type="button" title="Add a friend" aria-label="Add a friend">+</button>
         </div>
         <ul id="friend-requests"></ul>
@@ -223,6 +230,10 @@
       </form>
       <p id="profile-message"></p>
 
+      <h2>Privacy</h2>
+      <label class="check"><input id="online-input" type="checkbox" /> Show my friends when I'm online</label>
+      <p id="privacy-message"></p>
+
       <h2>Change username</h2>
       <form id="username-form" class="stack">
         <input id="new-username-input" placeholder="New username" autocomplete="off" />
@@ -256,6 +267,7 @@
     let currentRoom = null;
     let friendData = { friends: [], incoming: [], outgoing: [] };
     let dms = [];          // private chats, shaped like rooms so they reuse the room code
+    let unread = {};       // room_id -> number of messages I haven't read yet
     let lastAuthor = null; // groups consecutive messages from the same person
     let searchTimer = null;
 
@@ -343,6 +355,49 @@
       return b;
     }
 
+    // ---------- Unread messages ----------
+    function unreadBadge(count) {
+      const b = document.createElement("span");
+      b.className = "badge";
+      b.title = "Unread messages";
+      b.textContent = count > 99 ? "99+" : count;
+      return b;
+    }
+
+    function updateTitle() {
+      const total = Object.values(unread).reduce((sum, n) => sum + n, 0);
+      document.title = total ? `(${total}) Babylon Chat` : "Babylon Chat";
+    }
+
+    // True when the person is actually looking at this chat right now
+    function viewingRoom(roomId) {
+      return !!currentRoom && currentRoom.id === roomId
+        && !screens.chat.classList.contains("hidden") && !document.hidden;
+    }
+
+    function markRead(room) {
+      if (!room) return;
+      delete unread[room.id];
+      renderRooms();
+      renderFriends();
+      updateTitle();
+      api(`/api/rooms/${room.id}/read`, { method: "POST" }).catch(() => {});
+    }
+
+    async function loadUnread() {
+      const data = await api("/api/unread");
+      unread = data.counts;
+      if (currentRoom && viewingRoom(currentRoom.id)) return markRead(currentRoom);
+      renderRooms();
+      renderFriends();
+      updateTitle();
+    }
+
+    // Coming back to the tab counts as reading the open chat
+    document.addEventListener("visibilitychange", () => {
+      if (currentRoom && viewingRoom(currentRoom.id)) markRead(currentRoom);
+    });
+
     function setMessage(el, text, ok) {
       el.textContent = text;
       el.className = ok ? "success" : "error";
@@ -400,6 +455,9 @@
       renderFriends();
       dms = [];
       renderDms();
+      closePresence();
+      unread = {};
+      updateTitle();
       $("search-input").value = "";
       $("search-results").innerHTML = "";
       show("auth");
@@ -439,6 +497,7 @@
         await loadRequests();
         await loadFriends();
         await loadDms();
+        await loadUnread();
         // The open chat disappeared (room deleted, removed, or unfriended): move to another one
         if (currentRoom && !rooms.some((r) => r.id === currentRoom.id) && !dms.some((d) => d.id === currentRoom.id)) {
           selectRoom(rooms[0] || dms[0] || null);
@@ -455,12 +514,13 @@
 
       for (const room of rooms) {
         const li = document.createElement("li");
-        li.className = "room" + (currentRoom && currentRoom.id === room.id ? " active" : "");
+        li.className = "room" + (currentRoom && currentRoom.id === room.id ? " active" : "") + (unread[room.id] ? " has-unread" : "");
         li.appendChild(makeButton(room.name, "name", () => selectRoom(room)));
 
+        if (unread[room.id]) li.appendChild(unreadBadge(unread[room.id]));
         if (room.pending_count > 0) {
           const badge = document.createElement("span");
-          badge.className = "badge";
+          badge.className = "badge request";
           badge.title = "Pending join requests";
           badge.textContent = room.pending_count;
           li.appendChild(badge);
@@ -522,6 +582,19 @@
       renderFriends();
     }
 
+    // Avatar with a small green (online) or grey (offline) dot
+    function statusAvatar(person, online = person.online) {
+      const wrap = document.createElement("span");
+      wrap.className = "avatar-wrap";
+      const dot = document.createElement("span");
+      dot.className = "status" + (online ? " online" : "");
+      dot.title = online ? "Online" : "Offline";
+      wrap.append(makeAvatar(person.username, person.avatar_color, "small"), dot);
+      return wrap;
+    }
+    const byOnline = (a, b) => Number(b.online) - Number(a.online); // stable sort keeps the A-Z order inside each group
+    const isOnline = (userId) => friendData.friends.some((f) => f.id === userId && f.online);
+
     function renderFriends() {
       const { friends, incoming, outgoing } = friendData;
 
@@ -564,19 +637,75 @@
         );
         list.appendChild(li);
       }
-      for (const person of friends) {
+      // A friend row opens the private chat with that friend
+      const dmByUser = new Map(dms.map((d) => [d.user.id, d]));
+      for (const person of [...friends].sort(byOnline)) {
+        const dm = dmByUser.get(person.id);
+        const count = dm ? (unread[dm.id] || 0) : 0;
         const li = document.createElement("li");
-        li.className = "room";
-        li.append(
-          makeAvatar(person.username, person.avatar_color, "small"),
-          makeButton(person.username, "name", () => openDm(person)),
-          makeButton("Remove", "btn secondary small", () => {
-            if (confirm(`Remove ${person.username} from your friends?`)) removeFriend(person);
-          }),
-        );
+        li.className = "room"
+          + (dm && currentRoom && currentRoom.id === dm.id ? " active" : "")
+          + (count ? " has-unread" : "");
+
+        const status = document.createElement("span");
+        status.className = "friend-status" + (person.online ? " online" : "");
+        status.textContent = person.online ? "Online" : "Offline";
+        const info = document.createElement("div");
+        info.className = "friend-info";
+        info.append(makeButton(person.username, "name", () => openDm(person)), status);
+
+        li.append(statusAvatar(person), info);
+        if (count) li.appendChild(unreadBadge(count));
+        li.appendChild(makeButton("Remove", "btn secondary small", () => {
+          if (confirm(`Remove ${person.username} from your friends?`)) removeFriend(person);
+        }));
         list.appendChild(li);
       }
       $("no-friends").classList.toggle("hidden", friends.length + incoming.length + outgoing.length > 0);
+      const onlineCount = friends.filter((f) => f.online).length;
+      $("friends-title").textContent = friends.length ? `Friends (${onlineCount}/${friends.length} online)` : "Friends";
+    }
+
+    // ---------- Online presence ----------
+    // A separate WebSocket stays open while logged in, and the server pushes "friend X went online/offline"
+    let presenceSocket = null;
+
+    function connectPresence() {
+      if (presenceSocket) return;
+      const protocol = location.protocol === "https:" ? "wss" : "ws";
+      const token = sessionStorage.getItem("token");
+      const socket = new WebSocket(`${protocol}://${location.host}/presence?token=${encodeURIComponent(token)}`);
+      presenceSocket = socket;
+      socket.onopen = () => { // resync after (re)connecting
+        loadFriends().catch(() => {});
+        loadUnread().catch(() => {});
+      };
+      socket.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        if (data.type === "unread") {
+          if (viewingRoom(data.room_id)) return; // the open chat already shows it
+          unread[data.room_id] = (unread[data.room_id] || 0) + 1;
+          const known = rooms.some((r) => r.id === data.room_id) || dms.some((d) => d.id === data.room_id);
+          if (!known) { loadRooms().catch(() => {}); loadDms().catch(() => {}); } // a chat we haven't listed yet
+          renderRooms();
+          renderFriends();
+          updateTitle();
+          return;
+        }
+        if (data.type !== "presence") return;
+        const friend = friendData.friends.find((f) => f.id === data.user_id);
+        if (friend) { friend.online = data.online; renderFriends(); renderDms(); }
+      };
+      socket.onclose = (event) => {
+        if (presenceSocket !== socket) return; // closed on purpose
+        presenceSocket = null;
+        // Try again unless the server rejected our token
+        if (event.code !== 1008 && sessionStorage.getItem("token")) setTimeout(connectPresence, 3000);
+      };
+    }
+
+    function closePresence() {
+      if (presenceSocket) { const socket = presenceSocket; presenceSocket = null; socket.close(); }
     }
 
     // ---------- Direct messages ----------
@@ -589,20 +718,8 @@
       renderDms();
     }
 
-    function renderDms() {
-      const list = $("dm-list");
-      list.innerHTML = "";
-      for (const dm of dms) {
-        const li = document.createElement("li");
-        li.className = "room" + (currentRoom && currentRoom.id === dm.id ? " active" : "");
-        li.append(
-          makeAvatar(dm.user.username, dm.user.avatar_color, "small"),
-          makeButton(dm.name, "name", () => selectRoom(dm)),
-        );
-        list.appendChild(li);
-      }
-      $("no-dms").classList.toggle("hidden", dms.length > 0);
-    }
+    // Private chats are shown through the friends list, so redrawing friends redraws them too
+    function renderDms() { renderFriends(); }
 
     async function openDm(person) {
       $("side-error").textContent = "";
@@ -777,6 +894,7 @@
         const history = await api(`/api/rooms/${room.id}/messages`);
         if (currentRoom !== room) return; // user switched rooms while loading
         history.forEach(addMessage);
+        markRead(room);
         if (history.length === 0) {
           const empty = document.createElement("li");
           empty.className = "empty";
@@ -800,6 +918,8 @@
       loadRequests().catch(() => {});
       loadFriends().catch(() => {});
       await loadDms().catch(() => {});
+      await loadUnread().catch(() => {});
+      connectPresence();
       const saved = Number(sessionStorage.getItem("room"));
       selectRoom(rooms.find((r) => r.id === saved) || dms.find((d) => d.id === saved) || rooms[0] || dms[0] || null);
     }
@@ -820,6 +940,7 @@
           addSystemLine(data.text);
         } else {
           stopTyping(data.username); // they sent their message, so they are no longer typing
+          if (viewingRoom(room.id)) markRead(room);
           addMessage(data);
         }
       };
@@ -922,6 +1043,8 @@
       closeSocket();
       $("bio-input").value = p.bio;
       $("color-input").value = p.avatar_color;
+      $("online-input").checked = p.show_online;
+      setMessage($("privacy-message"), "", true);
       $("new-username-input").value = "";
       $("username-password-input").value = "";
       setMessage($("profile-message"), "", true);
@@ -933,6 +1056,18 @@
       const p = await fetchMyProfile();
       if (!p) return logout();
       openChat(p); // reconnecting also picks up a new username / avatar color
+    });
+
+    $("online-input").addEventListener("change", async () => {
+      const checkbox = $("online-input");
+      try {
+        await api("/api/users/me/visibility", jsonRequest("PUT", { show_online: checkbox.checked }));
+        setMessage($("privacy-message"),
+          checkbox.checked ? "Your friends can see when you're online." : "You now appear offline to everyone.", true);
+      } catch (error) {
+        checkbox.checked = !checkbox.checked; // undo, the server did not save it
+        setMessage($("privacy-message"), error.message, false);
+      }
     });
 
     $("profile-form").addEventListener("submit", async (event) => {

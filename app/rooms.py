@@ -9,8 +9,7 @@ from sqlalchemy.orm import Session
 from app.auth import get_current_user
 from app.database import get_db
 from app.manager import manager
-from app.models import DirectChat, JoinRequest, Message, Room, RoomMember, User
-
+from app.models import DirectChat, JoinRequest, Message, ReadState, Room, RoomMember, User
 router = APIRouter(prefix="/api/rooms", tags=["rooms"])
 
 
@@ -163,6 +162,7 @@ async def delete_room(
     db.execute(delete(Message).where(Message.room_id == room_id))
     db.execute(delete(RoomMember).where(RoomMember.room_id == room_id))
     db.execute(delete(JoinRequest).where(JoinRequest.room_id == room_id))
+    db.execute(delete(ReadState).where(ReadState.room_id == room_id))
     db.delete(room)
     db.commit()
     await manager.close_room(room_id)

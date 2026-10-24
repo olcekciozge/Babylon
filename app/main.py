@@ -3,11 +3,12 @@ import json
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse
 
-from app import auth, dms, friends, models, rooms, users  # noqa: F401  (models registers the tables)
+from app import auth, dms, friends, models, rooms, unread, users  # noqa: F401  (models registers the tables)
 from app.database import Base, SessionLocal, engine
 from app.dms import are_friends
 from app.manager import manager
 from app.models import DirectChat, Message
+from app.presence import presence
 from app.rooms import is_member, iso
 
 app = FastAPI()
@@ -18,11 +19,30 @@ app.include_router(users.router)
 app.include_router(rooms.router)
 app.include_router(friends.router)
 app.include_router(dms.router)
+app.include_router(unread.router)
 
 
 @app.get("/")
 async def index():
     return FileResponse("static/index.html")
+
+
+@app.websocket("/presence")
+async def presence_socket(websocket: WebSocket, token: str = ""):
+    with SessionLocal() as db:
+        user = auth.get_user_from_token(token, db)
+        info = {"id": user.id, "show_online": user.show_online} if user else None
+
+    if info is None:
+        await websocket.close(code=1008)
+        return
+
+    await presence.add(info["id"], websocket, info["show_online"])
+    try:
+        while True:
+            await websocket.receive_text()  # we ignore the content, this just keeps the socket open
+    except WebSocketDisconnect:
+        await presence.remove(info["id"], websocket)
 
 
 @app.websocket("/ws/{room_id}")
@@ -98,6 +118,8 @@ async def chat(websocket: WebSocket, room_id: int, token: str = ""):
                     "text": text,
                     "created_at": created_at,
                 })
+                # Members who are not looking at this chat get an unread badge
+                await presence.notify_message(room_id, info["id"])
     except WebSocketDisconnect:
         manager.disconnect(room_id, websocket)
         if not is_dm:

@@ -90,3 +90,12 @@ class DirectChat(Base):
 
     # One private chat per pair of users
     __table_args__ = (UniqueConstraint("user_a_id", "user_b_id"),)
+
+class ReadState(Base):
+    """The newest message each user has seen in each room. Messages after it are unread."""
+
+    __tablename__ = "read_states"
+
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), primary_key=True)
+    room_id: Mapped[int] = mapped_column(ForeignKey("rooms.id"), primary_key=True)
+    last_read_id: Mapped[int] = mapped_column(default=0)

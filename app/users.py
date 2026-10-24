@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app.auth import get_current_user, password_hasher
 from app.database import get_db
 from app.models import User
+from app.presence import presence
 
 router = APIRouter(prefix="/api/users", tags=["users"])
 
@@ -21,21 +22,26 @@ class UsernameUpdate(BaseModel):
     new_username: str = Field(pattern=r"^[A-Za-z0-9_]{3,20}$")
     password: str  # current password, required for this sensitive change
 
+class VisibilityUpdate(BaseModel):
+    show_online: bool
 
-def profile_data(user: User) -> dict:
-    return {
+def profile_data(user: User, include_private: bool = False) -> dict:
+    data = {
         "username": user.username,
         "bio": user.bio,
         "avatar_color": user.avatar_color,
         "created_at": user.created_at.isoformat(),
     }
+    if include_private:
+        data["show_online"] = user.show_online
+    return data
 
 
 # NOTE: "/me" routes must be declared BEFORE "/{username}",
 # otherwise FastAPI would treat "me" as a username.
 @router.get("/me")
 def get_my_profile(user: User = Depends(get_current_user)):
-    return profile_data(user)
+    return profile_data(user, include_private=True)
 
 
 @router.put("/me")
@@ -77,6 +83,19 @@ def change_username(
         raise HTTPException(status_code=409, detail="Username is already taken")
     return profile_data(user)
 
+@router.put("/me/visibility")
+async def set_visibility(
+    data: VisibilityUpdate,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    changed = user.show_online != data.show_online
+    user.show_online = data.show_online
+    db.commit()
+    # Friends should see the change immediately, without waiting for a reconnect
+    if changed and presence.is_online(user.id):
+        await presence.notify_friends(user.id, data.show_online)
+    return {"show_online": user.show_online}
 
 @router.get("/{username}")
 def get_user_profile(

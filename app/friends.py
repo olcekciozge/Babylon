@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app.auth import get_current_user
 from app.database import get_db
 from app.models import Friendship, User
+from app.presence import presence
 
 router = APIRouter(prefix="/api/friends", tags=["friends"])
 
@@ -53,7 +54,8 @@ def list_friends(user: User = Depends(get_current_user), db: Session = Depends(g
         if other is None:
             continue
         if r.status == "accepted":
-            friends.append(person(other))
+            online = presence.visible_online(other.id, other.show_online)
+            friends.append({**person(other), "online": online})
         elif r.requester_id == user.id:
             outgoing.append(person(other))
         else:
